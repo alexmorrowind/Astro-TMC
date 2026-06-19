@@ -31,11 +31,6 @@
       <strong>{{ item.drivers }} drivers</strong>
       <small>{{ item.trucks }} trucks · {{ item.missing_drivers }} missing · {{ item.inactive_drivers }} inactive</small>
     </a>
-    {% if user.role.value == 'superadmin' %}
-    <form method="post" action="/companies/{{ item.company.id }}/terminate">
-      <button class="link-button danger-link" type="submit">Terminate company</button>
-    </form>
-    {% endif %}
   </div>
   {% endfor %}
 </section>

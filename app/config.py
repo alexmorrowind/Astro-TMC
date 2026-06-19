@@ -24,8 +24,10 @@ class Settings(BaseSettings):
     google_credentials_json: str | None = None
     google_drive_root_folder_id: str | None = None
     google_drive_create_public_links: bool = False
+    google_sheets_spreadsheet_id: str | None = None
+    google_sheets_enabled: bool = False
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
 @lru_cache

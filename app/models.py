@@ -47,6 +47,7 @@ class Company(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     is_hidden: Mapped[bool] = mapped_column(default=False)
+    terminated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     drivers: Mapped[list["Driver"]] = relationship(back_populates="company", cascade="all, delete-orphan")
@@ -88,6 +89,7 @@ class Driver(Base):
     license_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     group_inactive: Mapped[bool] = mapped_column(default=False)
     status: Mapped[DriverStatus] = mapped_column(Enum(DriverStatus), default=DriverStatus.PENDING)
+    terminated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     drive_folder_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     drive_folder_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
@@ -110,6 +112,7 @@ class Truck(Base):
     vin: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     license_plate: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[DriverStatus] = mapped_column(Enum(DriverStatus), default=DriverStatus.PENDING)
+    terminated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     drive_folder_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     drive_folder_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

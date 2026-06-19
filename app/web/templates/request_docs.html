@@ -24,6 +24,13 @@
     Фото для шаблона
     <input name="photo" type="file" accept="image/*">
   </label>
+  {% if default_photo_available %}
+  <label class="switch-row">
+    <input type="checkbox" name="use_default_photo" value="true" checked>
+    <span>Отправить стандартную hiring-картинку вместе с сообщением</span>
+  </label>
+  <img class="template-preview" src="/static/assets/hiring_driver_documents.jpg" alt="Hiring driver documents template">
+  {% endif %}
 
   <div class="chat-picker">
     <h2>Личные чаты</h2>

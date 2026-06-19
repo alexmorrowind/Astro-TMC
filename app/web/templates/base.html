@@ -26,6 +26,7 @@
           <a href="/telegram/groups" class="{% if request.url.path == '/telegram/groups' %}active{% endif %}">Telegram</a>
           <a href="/telegram/request-docs" class="{% if request.url.path == '/telegram/request-docs' %}active{% endif %}">Запрос доков</a>
           <a href="/telegram/incoming" class="{% if request.url.path == '/telegram/incoming' %}active{% endif %}">Входящие доки</a>
+          <a href="/terminated" class="{% if request.url.path == '/terminated' %}active{% endif %}">Terminated</a>
           {% if user.role.value == 'superadmin' %}
           <a href="/admin" class="{% if request.url.path == '/admin' %}active{% endif %}">Администрирование</a>
           {% endif %}
@@ -39,5 +40,6 @@
         {% block content %}{% endblock %}
       </main>
     </div>
+    <script src="/static/app.js"></script>
   </body>
 </html>

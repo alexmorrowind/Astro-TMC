@@ -3,8 +3,8 @@
 {% block content %}
 <header class="page-header">
   <div>
-    <span class="eyebrow">Панель менеджера</span>
-    <h1>Таблица водителей</h1>
+    <span class="eyebrow">Overall</span>
+    <h1>Компании и водители</h1>
   </div>
   <div class="header-actions">
     {% if user.role.value == 'superadmin' %}
@@ -23,20 +23,27 @@
 {% endif %}
 
 {% if company_summaries %}
-<section class="company-summary-grid" aria-label="Компании">
+<section class="company-summary-grid company-picker" aria-label="Компании">
   {% for item in company_summaries %}
-  <a class="company-card" href="/?company_id={{ item.company.id }}">
-    <span>{{ item.company.name }}</span>
-    <strong>{{ item.drivers }} drivers</strong>
-    <small>{{ item.trucks }} trucks · {{ item.missing_drivers }} missing · {{ item.inactive_drivers }} inactive</small>
-  </a>
+  <div class="company-card {% if selected_company_id == item.company.id %}selected{% endif %}">
+    <a href="/?company_id={{ item.company.id }}">
+      <span>{{ item.company.name }}</span>
+      <strong>{{ item.drivers }} drivers</strong>
+      <small>{{ item.trucks }} trucks · {{ item.missing_drivers }} missing · {{ item.inactive_drivers }} inactive</small>
+    </a>
+    {% if user.role.value == 'superadmin' %}
+    <form method="post" action="/companies/{{ item.company.id }}/terminate">
+      <button class="link-button danger-link" type="submit">Terminate company</button>
+    </form>
+    {% endif %}
+  </div>
   {% endfor %}
 </section>
 {% endif %}
 
 <section class="stats-grid" aria-label="Статистика">
   <div class="stat-item">
-    <small>Всего</small>
+    <small>Drivers</small>
     <strong>{{ stats.total }}</strong>
   </div>
   <div class="stat-item good">
@@ -58,7 +65,7 @@
   <label>
     Компания
     <select name="company_id">
-      <option value="">Все компании</option>
+      <option value="">Выберите компанию</option>
       {% for company in companies %}
       <option value="{{ company.id }}" {% if selected_company_id == company.id %}selected{% endif %}>{{ company.name }}</option>
       {% endfor %}
@@ -83,7 +90,7 @@
 </form>
 
 <section class="table-shell">
-  <table class="data-table wide-table driver-table">
+  <table class="data-table overview-table">
     <thead>
       <tr>
         <th>Driver</th>
@@ -91,23 +98,18 @@
         <th>Address</th>
         <th>Phone number</th>
         <th>E-mail</th>
-        <th>Компания</th>
+        <th>Company</th>
         <th>Group inactive</th>
-        <th>Статус</th>
-        {% for document_name in required_documents %}
-        <th>{{ document_name }}</th>
-        {% endfor %}
+        <th>Status</th>
+        <th>Missing</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
-      {% for driver in drivers %}
+      {% for row in driver_rows %}
+      {% set driver = row.item %}
       <tr>
-        <td>
-          <a class="driver-link" href="/drivers/{{ driver.id }}">{{ driver.full_name }}</a>
-          {% if driver.telegram_id %}
-          <small>TG {{ driver.telegram_id }}</small>
-          {% endif %}
-        </td>
+        <td><a class="driver-link" href="/drivers/{{ driver.id }}">{{ driver.full_name }}</a></td>
         <td>{{ driver.birth_date or '-' }}</td>
         <td>{{ driver.address or '-' }}</td>
         <td>{{ driver.phone or '-' }}</td>
@@ -115,30 +117,61 @@
         <td>{{ driver.company.name }}</td>
         <td>{{ 'Yes' if driver.group_inactive else 'No' }}</td>
         <td><span class="status-pill {{ driver.status.value|lower|replace('_', '-') }}">{{ driver.status.value }}</span></td>
-        {% for document_name in required_documents %}
-          {% set document = (driver.documents | selectattr('display_name', 'equalto', document_name) | list | first) %}
-          <td>
-            {% if document %}
-            <a class="doc-cell ready" href="/documents/{{ document.id }}/view" target="_blank" title="{{ document.original_filename or document_name }}">
-              <strong>Uploaded</strong>
-              {% if document.expiration_date %}
-              <small>Exp {{ document.expiration_date }}</small>
+        <td>{{ row.missing_documents|length }}</td>
+        <td>
+          <div class="row-actions">
+            <button class="ghost-button compact details-toggle" type="button" data-target="driver-details-{{ driver.id }}">More details</button>
+            <form method="post" action="/drivers/{{ driver.id }}/terminate">
+              <button class="ghost-button compact danger-button" type="submit">Terminate</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      <tr id="driver-details-{{ driver.id }}" class="details-row" hidden>
+        <td colspan="10">
+          <div class="details-panel">
+            <div>
+              <h2>Missing documents</h2>
+              {% if row.missing_documents %}
+              <div class="missing-list">
+                {% for document_name in row.missing_documents %}
+                <span>{{ document_name }}</span>
+                {% endfor %}
+              </div>
               {% else %}
-              <small>{{ document.uploaded_at.strftime('%Y-%m-%d') }}</small>
+              <p class="muted">No missing documents.</p>
               {% endif %}
-            </a>
-            {% else %}
-            <span class="doc-cell missing" title="{{ document_name }}">
-              <strong>Missing</strong>
-              <small>No file</small>
-            </span>
-            {% endif %}
-          </td>
-        {% endfor %}
+            </div>
+            <div>
+              <h2>Document expiration</h2>
+              <div class="document-status-grid">
+                {% for doc in row.documents %}
+                {% set document = doc.document %}
+                <div class="doc-cell {{ doc.state.css }}">
+                  <strong>{{ doc.name }}</strong>
+                  <small>{{ doc.state.label }} · {{ doc.state.detail }}</small>
+                  {% if document %}
+                  <span class="doc-links">
+                    <a href="/documents/{{ document.id }}/view" target="_blank">Open</a>
+                    <a href="/documents/{{ document.id }}/download">Download</a>
+                  </span>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="{{ 8 + required_documents|length }}" class="empty-state">Водители пока не добавлены. Нажмите “Сканировать Google Drive” или дождитесь документов из Telegram.</td>
+        <td colspan="10" class="empty-state">
+          {% if selected_company_id %}
+          У этой компании пока нет активных водителей.
+          {% else %}
+          Выберите компанию сверху, чтобы увидеть водителей.
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

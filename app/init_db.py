@@ -82,6 +82,14 @@ def apply_sqlite_migrations() -> None:
             driver_statements.append("ALTER TABLE drivers ADD COLUMN emergency_contact VARCHAR(255)")
         if "group_inactive" not in driver_columns:
             driver_statements.append("ALTER TABLE drivers ADD COLUMN group_inactive BOOLEAN DEFAULT 0")
+        if "terminated_at" not in driver_columns:
+            driver_statements.append("ALTER TABLE drivers ADD COLUMN terminated_at DATETIME")
+
+    truck_statements = []
+    if "trucks" in table_names:
+        truck_columns = {column["name"] for column in inspector.get_columns("trucks")}
+        if "terminated_at" not in truck_columns:
+            truck_statements.append("ALTER TABLE trucks ADD COLUMN terminated_at DATETIME")
 
     required_document_statements = []
     if "required_documents" in table_names:
@@ -96,12 +104,15 @@ def apply_sqlite_migrations() -> None:
         company_columns = {column["name"] for column in inspector.get_columns("companies")}
         if "is_hidden" not in company_columns:
             company_statements.append("ALTER TABLE companies ADD COLUMN is_hidden BOOLEAN DEFAULT 0")
+        if "terminated_at" not in company_columns:
+            company_statements.append("ALTER TABLE companies ADD COLUMN terminated_at DATETIME")
 
     with engine.begin() as connection:
         for statement in (
             telegram_group_statements
             + document_statements
             + driver_statements
+            + truck_statements
             + required_document_statements
             + company_statements
         ):

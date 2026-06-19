@@ -1,5 +1,5 @@
 import tempfile
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, Response, UploadFile, status
@@ -55,6 +55,8 @@ app = FastAPI(title="TMC Driver Docs")
 templates = Jinja2Templates(directory="app/web/templates")
 app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 
+DEFAULT_REQUEST_PHOTO = Path("app/web/static/assets/hiring_driver_documents.jpg")
+
 
 @app.on_event("startup")
 def on_startup() -> None:
@@ -93,18 +95,38 @@ def render(request: Request, template: str, context: dict, status_code: int = 20
 def company_summaries(db: Session, include_hidden: bool = False) -> list[dict]:
     company_stmt = select(Company).order_by(Company.name)
     if not include_hidden:
-        company_stmt = company_stmt.where(Company.is_hidden == False)
+        company_stmt = company_stmt.where(
+            Company.is_hidden == False,
+            Company.terminated_at.is_(None),
+        )
     companies = list(db.scalars(company_stmt))
 
     summaries = []
     for company in companies:
-        drivers_count = db.scalar(select(func.count(Driver.id)).where(Driver.company_id == company.id)) or 0
-        trucks_count = db.scalar(select(func.count(Truck.id)).where(Truck.company_id == company.id)) or 0
+        drivers_count = (
+            db.scalar(
+                select(func.count(Driver.id)).where(
+                    Driver.company_id == company.id,
+                    Driver.terminated_at.is_(None),
+                )
+            )
+            or 0
+        )
+        trucks_count = (
+            db.scalar(
+                select(func.count(Truck.id)).where(
+                    Truck.company_id == company.id,
+                    Truck.terminated_at.is_(None),
+                )
+            )
+            or 0
+        )
         missing_drivers = (
             db.scalar(
                 select(func.count(Driver.id)).where(
                     Driver.company_id == company.id,
                     Driver.status == DriverStatus.MISSING_DOCS,
+                    Driver.terminated_at.is_(None),
                 )
             )
             or 0
@@ -114,6 +136,7 @@ def company_summaries(db: Session, include_hidden: bool = False) -> list[dict]:
                 select(func.count(Driver.id)).where(
                     Driver.company_id == company.id,
                     Driver.group_inactive == True,
+                    Driver.terminated_at.is_(None),
                 )
             )
             or 0
@@ -128,6 +151,62 @@ def company_summaries(db: Session, include_hidden: bool = False) -> list[dict]:
             }
         )
     return summaries
+
+
+def document_state(document: Document | TruckDocument | None) -> dict:
+    if not document:
+        return {"label": "Missing", "detail": "No file", "css": "missing", "expiration": None}
+    if not document.expiration_date:
+        return {
+            "label": "No exp date",
+            "detail": "Set date",
+            "css": "no-exp",
+            "expiration": None,
+        }
+    today = date.today()
+    if document.expiration_date < today:
+        css = "expired"
+        label = "Expired"
+    elif document.expiration_date <= today + timedelta(days=30):
+        css = "expiring"
+        label = "Expiring"
+    else:
+        css = "valid"
+        label = "Valid"
+    return {
+        "label": label,
+        "detail": document.expiration_date.isoformat(),
+        "css": css,
+        "expiration": document.expiration_date,
+    }
+
+
+def driver_row_payload(driver: Driver, required_documents: list[str]) -> dict:
+    document_map = {document.display_name: document for document in driver.documents}
+    documents = [
+        {
+            "name": document_name,
+            "document": document_map.get(document_name),
+            "state": document_state(document_map.get(document_name)),
+        }
+        for document_name in required_documents
+    ]
+    missing_documents = [item["name"] for item in documents if item["document"] is None]
+    return {"item": driver, "documents": documents, "missing_documents": missing_documents}
+
+
+def truck_row_payload(truck: Truck, required_documents: list[str]) -> dict:
+    document_map = {document.display_name: document for document in truck.documents}
+    documents = [
+        {
+            "name": document_name,
+            "document": document_map.get(document_name),
+            "state": document_state(document_map.get(document_name)),
+        }
+        for document_name in required_documents
+    ]
+    missing_documents = [item["name"] for item in documents if item["document"] is None]
+    return {"item": truck, "documents": documents, "missing_documents": missing_documents}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -146,8 +225,15 @@ def dashboard(
     effective_company_id = user.company_id if user.role == UserRole.MANAGER else company_id
 
     drivers = list_drivers_with_documents(db, company_id=effective_company_id)
+    drivers = [driver for driver in drivers if driver.terminated_at is None]
+    if user.role == UserRole.SUPERADMIN and effective_company_id is None:
+        drivers = []
     if user.role == UserRole.SUPERADMIN:
-        drivers = [driver for driver in drivers if not driver.company.is_hidden]
+        drivers = [
+            driver
+            for driver in drivers
+            if not driver.company.is_hidden and driver.company.terminated_at is None
+        ]
     if status_filter:
         drivers = [driver for driver in drivers if driver.status.value == status_filter]
     if q:
@@ -171,6 +257,7 @@ def dashboard(
         company_id=effective_company_id,
         entity_type=EntityType.DRIVER,
     )
+    driver_rows = [driver_row_payload(driver, required_documents) for driver in drivers]
     return render(
         request,
         "dashboard.html",
@@ -178,6 +265,7 @@ def dashboard(
             "user": user,
             "companies": companies,
             "drivers": drivers,
+            "driver_rows": driver_rows,
             "stats": stats,
             "company_summaries": company_summaries(db) if user.role == UserRole.SUPERADMIN else [],
             "required_documents": required_documents,
@@ -205,8 +293,15 @@ def trucks_page(
     companies = list(db.scalars(companies_stmt))
     effective_company_id = user.company_id if user.role == UserRole.MANAGER else company_id
     trucks = list_trucks_with_documents(db, company_id=effective_company_id)
+    trucks = [truck for truck in trucks if truck.terminated_at is None]
+    if user.role == UserRole.SUPERADMIN and effective_company_id is None:
+        trucks = []
     if user.role == UserRole.SUPERADMIN:
-        trucks = [truck for truck in trucks if not truck.company.is_hidden]
+        trucks = [
+            truck
+            for truck in trucks
+            if not truck.company.is_hidden and truck.company.terminated_at is None
+        ]
     if status_filter:
         trucks = [truck for truck in trucks if truck.status.value == status_filter]
     if q:
@@ -226,6 +321,12 @@ def trucks_page(
         "missing": sum(1 for truck in trucks if truck.status == DriverStatus.MISSING_DOCS),
         "pending": sum(1 for truck in trucks if truck.status == DriverStatus.PENDING),
     }
+    required_documents = list_required_document_names(
+        db,
+        company_id=effective_company_id,
+        entity_type=EntityType.TRUCK,
+    )
+    truck_rows = [truck_row_payload(truck, required_documents) for truck in trucks]
     return render(
         request,
         "trucks.html",
@@ -233,12 +334,9 @@ def trucks_page(
             "user": user,
             "companies": companies,
             "trucks": trucks,
+            "truck_rows": truck_rows,
             "stats": stats,
-            "required_documents": list_required_document_names(
-                db,
-                company_id=effective_company_id,
-                entity_type=EntityType.TRUCK,
-            ),
+            "required_documents": required_documents,
             "selected_company_id": effective_company_id,
             "status_filter": status_filter or "",
             "q": q or "",
@@ -353,6 +451,26 @@ def update_driver_profile(
     return RedirectResponse(f"/drivers/{driver.id}", status_code=303)
 
 
+@app.post("/drivers/{driver_id}/terminate")
+def terminate_driver(driver_id: int, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    driver = db.scalar(select(Driver).where(Driver.id == driver_id).options(joinedload(Driver.company)))
+    driver = ensure_driver_access(user, driver)
+    driver.terminated_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse(f"/?company_id={driver.company_id}", status_code=303)
+
+
+@app.post("/drivers/{driver_id}/restore")
+def restore_driver(driver_id: int, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    driver = db.scalar(select(Driver).where(Driver.id == driver_id).options(joinedload(Driver.company)))
+    driver = ensure_driver_access(user, driver)
+    driver.terminated_at = None
+    db.commit()
+    return RedirectResponse("/terminated", status_code=303)
+
+
 @app.get("/trucks/{truck_id}", response_class=HTMLResponse)
 def truck_detail(truck_id: int, request: Request, db: Session = Depends(get_db)):
     user = require_user(request, db)
@@ -396,6 +514,26 @@ def update_truck_profile(
     truck.license_plate = clean_optional_text(license_plate)
     db.commit()
     return RedirectResponse(f"/trucks/{truck.id}", status_code=303)
+
+
+@app.post("/trucks/{truck_id}/terminate")
+def terminate_truck(truck_id: int, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    truck = db.scalar(select(Truck).where(Truck.id == truck_id).options(joinedload(Truck.company)))
+    truck = ensure_truck_access(user, truck)
+    truck.terminated_at = datetime.utcnow()
+    db.commit()
+    return RedirectResponse(f"/trucks?company_id={truck.company_id}", status_code=303)
+
+
+@app.post("/trucks/{truck_id}/restore")
+def restore_truck(truck_id: int, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    truck = db.scalar(select(Truck).where(Truck.id == truck_id).options(joinedload(Truck.company)))
+    truck = ensure_truck_access(user, truck)
+    truck.terminated_at = None
+    db.commit()
+    return RedirectResponse("/terminated", status_code=303)
 
 
 @app.post("/drive-sync")
@@ -456,6 +594,63 @@ def toggle_company_hidden(company_id: int, request: Request, db: Session = Depen
         company.is_hidden = not company.is_hidden
         db.commit()
     return RedirectResponse("/companies", status_code=303)
+
+
+@app.post("/companies/{company_id}/terminate")
+def terminate_company(company_id: int, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    require_superadmin(user)
+    company = db.get(Company, company_id)
+    if company:
+        company.terminated_at = datetime.utcnow()
+        db.commit()
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/companies/{company_id}/restore")
+def restore_company(company_id: int, request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    require_superadmin(user)
+    company = db.get(Company, company_id)
+    if company:
+        company.terminated_at = None
+        company.is_hidden = False
+        db.commit()
+    return RedirectResponse("/terminated", status_code=303)
+
+
+@app.get("/terminated", response_class=HTMLResponse)
+def terminated_page(request: Request, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    effective_company_id = user.company_id if user.role == UserRole.MANAGER else None
+    companies_stmt = select(Company).where(Company.terminated_at.is_not(None)).order_by(Company.name)
+    if effective_company_id:
+        companies_stmt = companies_stmt.where(Company.id == effective_company_id)
+    drivers_stmt = (
+        select(Driver)
+        .where(Driver.terminated_at.is_not(None))
+        .options(joinedload(Driver.company))
+        .order_by(Driver.terminated_at.desc())
+    )
+    trucks_stmt = (
+        select(Truck)
+        .where(Truck.terminated_at.is_not(None))
+        .options(joinedload(Truck.company))
+        .order_by(Truck.terminated_at.desc())
+    )
+    if effective_company_id:
+        drivers_stmt = drivers_stmt.where(Driver.company_id == effective_company_id)
+        trucks_stmt = trucks_stmt.where(Truck.company_id == effective_company_id)
+    return render(
+        request,
+        "terminated.html",
+        {
+            "user": user,
+            "companies": list(db.scalars(companies_stmt)),
+            "drivers": list(db.scalars(drivers_stmt)),
+            "trucks": list(db.scalars(trucks_stmt)),
+        },
+    )
 
 
 @app.get("/telegram/groups", response_class=HTMLResponse)
@@ -570,10 +765,6 @@ def request_docs_page(request: Request, db: Session = Depends(get_db)):
         "- Social Security number (SSN)\n"
         "- Work Authorization / Green Card / US Passport\n"
         "- Emergency contact email and phone\n"
-        "- DrugTest / random test results if any\n"
-        "- CCF form\n"
-        "- Clearinghouse\n"
-        "- Contract\n"
         "Thank you."
     )
     return render(
@@ -583,6 +774,7 @@ def request_docs_page(request: Request, db: Session = Depends(get_db)):
             "user": user,
             "chats": chats,
             "default_text": default_text,
+            "default_photo_available": DEFAULT_REQUEST_PHOTO.exists(),
             "outbox_messages": outbox_messages,
         },
     )
@@ -593,6 +785,7 @@ async def queue_request_docs(
     request: Request,
     chat_ids: list[int] = Form(...),
     text: str = Form(...),
+    use_default_photo: bool = Form(False),
     photo: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
@@ -611,13 +804,18 @@ async def queue_request_docs(
 
     photo_path = None
     photo_filename = None
+    should_delete_photo_path = False
     if photo and photo.filename:
         suffix = Path(photo.filename).suffix or ".bin"
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_file:
             photo_path = temp_file.name
             photo_filename = photo.filename
+            should_delete_photo_path = True
             while chunk := await photo.read(1024 * 1024):
                 temp_file.write(chunk)
+    elif use_default_photo and DEFAULT_REQUEST_PHOTO.exists():
+        photo_path = str(DEFAULT_REQUEST_PHOTO)
+        photo_filename = DEFAULT_REQUEST_PHOTO.name
     try:
         create_outbox_messages(
             db,
@@ -629,7 +827,7 @@ async def queue_request_docs(
         )
         db.commit()
     finally:
-        if photo_path:
+        if should_delete_photo_path and photo_path:
             Path(photo_path).unlink(missing_ok=True)
     return RedirectResponse("/telegram/request-docs?queued=1", status_code=303)
 

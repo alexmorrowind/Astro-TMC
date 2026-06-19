@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <span class="eyebrow">Archive</span>
+    <h1>Terminated</h1>
+    <p class="muted">Компании, водители и траки, которые убрали из активных таблиц.</p>
+  </div>
+</header>
+
+{% if user.role.value == 'superadmin' %}
+<section class="table-shell admin-table-gap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Company</th>
+        <th>Terminated at</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for company in companies %}
+      <tr>
+        <td>{{ company.name }}</td>
+        <td>{{ company.terminated_at.strftime('%Y-%m-%d %H:%M') if company.terminated_at else '-' }}</td>
+        <td>
+          <form method="post" action="/companies/{{ company.id }}/restore">
+            <button class="ghost-button compact" type="submit">Restore</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="empty-state">No terminated companies.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+<section class="table-shell admin-table-gap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Driver</th>
+        <th>Company</th>
+        <th>Terminated at</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for driver in drivers %}
+      <tr>
+        <td>{{ driver.full_name }}</td>
+        <td>{{ driver.company.name }}</td>
+        <td>{{ driver.terminated_at.strftime('%Y-%m-%d %H:%M') if driver.terminated_at else '-' }}</td>
+        <td>
+          <form method="post" action="/drivers/{{ driver.id }}/restore">
+            <button class="ghost-button compact" type="submit">Restore</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty-state">No terminated drivers.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="table-shell admin-table-gap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Truck</th>
+        <th>Company</th>
+        <th>Terminated at</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for truck in trucks %}
+      <tr>
+        <td>{{ truck.unit_number }}</td>
+        <td>{{ truck.company.name }}</td>
+        <td>{{ truck.terminated_at.strftime('%Y-%m-%d %H:%M') if truck.terminated_at else '-' }}</td>
+        <td>
+          <form method="post" action="/trucks/{{ truck.id }}/restore">
+            <button class="ghost-button compact" type="submit">Restore</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="empty-state">No terminated trucks.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

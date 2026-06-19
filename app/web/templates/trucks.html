@@ -3,8 +3,8 @@
 {% block content %}
 <header class="page-header">
   <div>
-    <span class="eyebrow">Панель менеджера</span>
-    <h1>Таблица траков</h1>
+    <span class="eyebrow">Overall</span>
+    <h1>Компании и траки</h1>
   </div>
   <div class="header-actions">
     {% if user.role.value == 'superadmin' %}
@@ -24,7 +24,7 @@
 
 <section class="stats-grid" aria-label="Статистика">
   <div class="stat-item">
-    <small>Всего</small>
+    <small>Trucks</small>
     <strong>{{ stats.total }}</strong>
   </div>
   <div class="stat-item good">
@@ -46,7 +46,7 @@
   <label>
     Компания
     <select name="company_id">
-      <option value="">Все компании</option>
+      <option value="">Выберите компанию</option>
       {% for company in companies %}
       <option value="{{ company.id }}" {% if selected_company_id == company.id %}selected{% endif %}>{{ company.name }}</option>
       {% endfor %}
@@ -71,7 +71,7 @@
 </form>
 
 <section class="table-shell">
-  <table class="data-table wide-table">
+  <table class="data-table overview-table">
     <thead>
       <tr>
         <th>Unit №</th>
@@ -81,13 +81,13 @@
         <th>License plate</th>
         <th>Company</th>
         <th>Status</th>
-        {% for document_name in required_documents %}
-        <th>{{ document_name }}</th>
-        {% endfor %}
+        <th>Missing</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
-      {% for truck in trucks %}
+      {% for row in truck_rows %}
+      {% set truck = row.item %}
       <tr>
         <td><a class="driver-link" href="/trucks/{{ truck.id }}">{{ truck.unit_number }}</a></td>
         <td>{{ truck.year or '-' }}</td>
@@ -96,30 +96,61 @@
         <td>{{ truck.license_plate or '-' }}</td>
         <td>{{ truck.company.name }}</td>
         <td><span class="status-pill {{ truck.status.value|lower|replace('_', '-') }}">{{ truck.status.value }}</span></td>
-        {% for document_name in required_documents %}
-          {% set document = (truck.documents | selectattr('display_name', 'equalto', document_name) | list | first) %}
-          <td>
-            {% if document %}
-            <a class="doc-cell ready" href="/truck-documents/{{ document.id }}/view" target="_blank" title="{{ document.original_filename or document_name }}">
-              <strong>Uploaded</strong>
-              {% if document.expiration_date %}
-              <small>Exp {{ document.expiration_date }}</small>
+        <td>{{ row.missing_documents|length }}</td>
+        <td>
+          <div class="row-actions">
+            <button class="ghost-button compact details-toggle" type="button" data-target="truck-details-{{ truck.id }}">More details</button>
+            <form method="post" action="/trucks/{{ truck.id }}/terminate">
+              <button class="ghost-button compact danger-button" type="submit">Terminate</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      <tr id="truck-details-{{ truck.id }}" class="details-row" hidden>
+        <td colspan="9">
+          <div class="details-panel">
+            <div>
+              <h2>Missing documents</h2>
+              {% if row.missing_documents %}
+              <div class="missing-list">
+                {% for document_name in row.missing_documents %}
+                <span>{{ document_name }}</span>
+                {% endfor %}
+              </div>
               {% else %}
-              <small>{{ document.uploaded_at.strftime('%Y-%m-%d') }}</small>
+              <p class="muted">No missing documents.</p>
               {% endif %}
-            </a>
-            {% else %}
-            <span class="doc-cell missing" title="{{ document_name }}">
-              <strong>Missing</strong>
-              <small>No file</small>
-            </span>
-            {% endif %}
-          </td>
-        {% endfor %}
+            </div>
+            <div>
+              <h2>Document expiration</h2>
+              <div class="document-status-grid">
+                {% for doc in row.documents %}
+                {% set document = doc.document %}
+                <div class="doc-cell {{ doc.state.css }}">
+                  <strong>{{ doc.name }}</strong>
+                  <small>{{ doc.state.label }} · {{ doc.state.detail }}</small>
+                  {% if document %}
+                  <span class="doc-links">
+                    <a href="/truck-documents/{{ document.id }}/view" target="_blank">Open</a>
+                    <a href="/truck-documents/{{ document.id }}/download">Download</a>
+                  </span>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </td>
       </tr>
       {% else %}
       <tr>
-        <td colspan="{{ 7 + required_documents|length }}" class="empty-state">Траки пока не добавлены. Нажмите “Сканировать Google Drive”.</td>
+        <td colspan="9" class="empty-state">
+          {% if selected_company_id %}
+          У этой компании пока нет активных траков.
+          {% else %}
+          Выберите компанию сверху, чтобы увидеть траки.
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

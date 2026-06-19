@@ -86,3 +86,30 @@ def touch_group_activity(
     group.message_count = (group.message_count or 0) + 1
     db.flush()
     return group
+
+
+def touch_or_create_group_activity(
+    db: Session,
+    *,
+    chat_id: int,
+    title: str,
+    chat_type: str,
+    from_username: str | None,
+    default_active: bool,
+) -> TelegramGroup:
+    group = db.scalar(select(TelegramGroup).where(TelegramGroup.chat_id == chat_id))
+    if group is None:
+        group = TelegramGroup(
+            chat_id=chat_id,
+            title=title,
+            chat_type=chat_type,
+            is_active=default_active,
+        )
+        db.add(group)
+    group.title = title
+    group.chat_type = chat_type
+    group.last_seen_at = datetime.utcnow()
+    group.last_message_from = from_username
+    group.message_count = (group.message_count or 0) + 1
+    db.flush()
+    return group

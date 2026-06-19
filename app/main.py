@@ -47,7 +47,7 @@ from app.services.drivers import (
 from app.services.drive import GoogleDriveStorage
 from app.services.drive_status import move_entity_folder_to_status
 from app.services.drive_sync import scan_drive_to_database
-from app.services.groups import list_groups_for_company
+from app.services.groups import list_groups_for_company, touch_or_create_group_activity, upsert_discovered_telegram_group
 from app.services.incoming import IncomingTelegramMetadata, assign_incoming_document, store_incoming_document
 from app.services.outbox import create_outbox_messages
 from app.services.trucks import list_trucks_with_documents
@@ -1314,6 +1314,63 @@ async def ingest_telegram_document(
         temp_path.unlink(missing_ok=True)
 
     return {"id": incoming.id, "status": incoming.status.value}
+
+
+@app.post("/api/telegram/chats/sync")
+async def sync_telegram_chats(
+    payload: dict,
+    x_ingest_token: str | None = Header(None, alias="X-Ingest-Token"),
+    db: Session = Depends(get_db),
+):
+    settings = get_settings()
+    if settings.telegram_ingest_token and x_ingest_token != settings.telegram_ingest_token:
+        raise HTTPException(status_code=401, detail="Invalid ingest token")
+
+    default_active = bool(payload.get("default_active", True))
+    chats = payload.get("chats") or []
+    synced = 0
+    for item in chats:
+        try:
+            chat_id = int(item["chat_id"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        upsert_discovered_telegram_group(
+            db,
+            chat_id=chat_id,
+            title=str(item.get("title") or chat_id),
+            chat_type=str(item.get("chat_type") or "group"),
+            default_active=default_active,
+        )
+        synced += 1
+    db.commit()
+    return {"synced": synced}
+
+
+@app.post("/api/telegram/chats/activity")
+async def sync_telegram_chat_activity(
+    payload: dict,
+    x_ingest_token: str | None = Header(None, alias="X-Ingest-Token"),
+    db: Session = Depends(get_db),
+):
+    settings = get_settings()
+    if settings.telegram_ingest_token and x_ingest_token != settings.telegram_ingest_token:
+        raise HTTPException(status_code=401, detail="Invalid ingest token")
+
+    try:
+        chat_id = int(payload["chat_id"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid chat_id") from exc
+
+    group = touch_or_create_group_activity(
+        db,
+        chat_id=chat_id,
+        title=str(payload.get("title") or chat_id),
+        chat_type=str(payload.get("chat_type") or "group"),
+        from_username=payload.get("from_username"),
+        default_active=not get_settings().telegram_collector_require_connected_groups,
+    )
+    db.commit()
+    return {"id": group.id, "message_count": group.message_count}
 
 
 @app.get("/api/integrations/status/")

@@ -80,24 +80,56 @@ def event_chat_type(chat) -> str:
     return "private"
 
 
+def ingest_headers() -> dict[str, str]:
+    settings = get_settings()
+    headers = {}
+    if settings.telegram_ingest_token:
+        headers["X-Ingest-Token"] = settings.telegram_ingest_token
+    return headers
+
+
+async def post_json_to_backend(path: str, payload: dict) -> dict:
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(
+            f"{collector_backend_url()}{path}",
+            json=payload,
+            headers=ingest_headers(),
+        )
+    response.raise_for_status()
+    return response.json()
+
+
 async def sync_dialogs(client: TelegramClient) -> None:
     settings = get_settings()
     discovered = 0
     default_active = not settings.telegram_collector_require_connected_groups
+    remote_chats = []
     with SessionLocal() as db:
         async for dialog in client.iter_dialogs():
             if not (dialog.is_group or dialog.is_channel or dialog.is_user):
                 continue
+            chat_type = dialog_chat_type(dialog)
+            title = dialog.name or str(dialog.id)
             upsert_discovered_telegram_group(
                 db,
                 chat_id=dialog.id,
-                title=dialog.name or str(dialog.id),
-                chat_type=dialog_chat_type(dialog),
+                title=title,
+                chat_type=chat_type,
                 default_active=default_active,
             )
+            remote_chats.append({"chat_id": dialog.id, "title": title, "chat_type": chat_type})
             discovered += 1
         db.commit()
-    print(f"Synced {discovered} Telegram chats/groups/channels into CRM.")
+    try:
+        result = await post_json_to_backend(
+            "/api/telegram/chats/sync",
+            {"default_active": default_active, "chats": remote_chats},
+        )
+        remote_synced = result.get("synced", 0)
+    except Exception as exc:
+        print(f"Remote Telegram chat sync failed: {exc}")
+        remote_synced = 0
+    print(f"Synced {discovered} Telegram chats/groups/channels into local CRM and {remote_synced} into backend.")
 
 
 async def sync_dialogs_loop(client: TelegramClient) -> None:
@@ -122,11 +154,6 @@ async def send_to_backend(
     caption: str | None,
     mime_type: str | None,
 ) -> dict:
-    settings = get_settings()
-    headers = {}
-    if settings.telegram_ingest_token:
-        headers["X-Ingest-Token"] = settings.telegram_ingest_token
-
     data = {
         "chat_id": str(chat_id),
         "chat_title": chat_title or "",
@@ -143,7 +170,7 @@ async def send_to_backend(
                 f"{collector_backend_url()}/api/telegram/documents/ingest",
                 data=data,
                 files=files,
-                headers=headers,
+                headers=ingest_headers(),
             )
     response.raise_for_status()
     return response.json()
@@ -181,6 +208,18 @@ async def handle_new_message(event) -> None:
             from_username=from_username,
         )
         db.commit()
+    try:
+        await post_json_to_backend(
+            "/api/telegram/chats/activity",
+            {
+                "chat_id": chat_id,
+                "title": chat_title,
+                "chat_type": chat_type,
+                "from_username": from_username,
+            },
+        )
+    except Exception as exc:
+        print(f"Remote Telegram chat activity sync failed for {chat_id}: {exc}")
 
     file_name = guess_file_name(event)
     mime_type = event.message.file.mime_type if event.message.file else None

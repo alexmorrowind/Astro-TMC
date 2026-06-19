@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <span class="eyebrow">Панель менеджера</span>
+    <h1>Таблица водителей</h1>
+  </div>
+  <div class="header-actions">
+    {% if user.role.value == 'superadmin' %}
+    <form method="post" action="/drive-sync">
+      <button class="primary-button compact" type="submit">Сканировать Google Drive</button>
+    </form>
+    {% endif %}
+    <span class="user-chip">{{ user.username }}</span>
+  </div>
+</header>
+
+{% if drive_sync_result %}
+<section class="info-panel notice-panel">
+  Google Drive sync: {{ drive_sync_result }}
+</section>
+{% endif %}
+
+{% if company_summaries %}
+<section class="company-summary-grid" aria-label="Компании">
+  {% for item in company_summaries %}
+  <a class="company-card" href="/?company_id={{ item.company.id }}">
+    <span>{{ item.company.name }}</span>
+    <strong>{{ item.drivers }} drivers</strong>
+    <small>{{ item.trucks }} trucks · {{ item.missing_drivers }} missing · {{ item.inactive_drivers }} inactive</small>
+  </a>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section class="stats-grid" aria-label="Статистика">
+  <div class="stat-item">
+    <small>Всего</small>
+    <strong>{{ stats.total }}</strong>
+  </div>
+  <div class="stat-item good">
+    <small>Active</small>
+    <strong>{{ stats.active }}</strong>
+  </div>
+  <div class="stat-item warn">
+    <small>Missing Docs</small>
+    <strong>{{ stats.missing }}</strong>
+  </div>
+  <div class="stat-item quiet">
+    <small>Pending</small>
+    <strong>{{ stats.pending }}</strong>
+  </div>
+</section>
+
+<form class="toolbar" method="get" action="/">
+  {% if user.role.value == 'superadmin' %}
+  <label>
+    Компания
+    <select name="company_id">
+      <option value="">Все компании</option>
+      {% for company in companies %}
+      <option value="{{ company.id }}" {% if selected_company_id == company.id %}selected{% endif %}>{{ company.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% endif %}
+  <label>
+    Статус
+    <select name="status_filter">
+      <option value="">Все статусы</option>
+      {% for status in statuses %}
+      <option value="{{ status.value }}" {% if status_filter == status.value %}selected{% endif %}>{{ status.value }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="search-field">
+    Поиск
+    <input name="q" value="{{ q }}" placeholder="ФИО, телефон, лицензия">
+  </label>
+  <button type="submit" class="primary-button compact">Фильтровать</button>
+  <a href="/" class="ghost-button compact">Сброс</a>
+</form>
+
+<section class="table-shell">
+  <table class="data-table wide-table driver-table">
+    <thead>
+      <tr>
+        <th>Driver</th>
+        <th>Date of birth</th>
+        <th>Address</th>
+        <th>Phone number</th>
+        <th>E-mail</th>
+        <th>Компания</th>
+        <th>Group inactive</th>
+        <th>Статус</th>
+        {% for document_name in required_documents %}
+        <th>{{ document_name }}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for driver in drivers %}
+      <tr>
+        <td>
+          <a class="driver-link" href="/drivers/{{ driver.id }}">{{ driver.full_name }}</a>
+          {% if driver.telegram_id %}
+          <small>TG {{ driver.telegram_id }}</small>
+          {% endif %}
+        </td>
+        <td>{{ driver.birth_date or '-' }}</td>
+        <td>{{ driver.address or '-' }}</td>
+        <td>{{ driver.phone or '-' }}</td>
+        <td>{{ driver.email or '-' }}</td>
+        <td>{{ driver.company.name }}</td>
+        <td>{{ 'Yes' if driver.group_inactive else 'No' }}</td>
+        <td><span class="status-pill {{ driver.status.value|lower|replace('_', '-') }}">{{ driver.status.value }}</span></td>
+        {% for document_name in required_documents %}
+          {% set document = (driver.documents | selectattr('display_name', 'equalto', document_name) | list | first) %}
+          <td>
+            {% if document %}
+            <a class="doc-cell ready" href="/documents/{{ document.id }}/view" target="_blank" title="{{ document.original_filename or document_name }}">
+              <strong>Uploaded</strong>
+              {% if document.expiration_date %}
+              <small>Exp {{ document.expiration_date }}</small>
+              {% else %}
+              <small>{{ document.uploaded_at.strftime('%Y-%m-%d') }}</small>
+              {% endif %}
+            </a>
+            {% else %}
+            <span class="doc-cell missing" title="{{ document_name }}">
+              <strong>Missing</strong>
+              <small>No file</small>
+            </span>
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="{{ 8 + required_documents|length }}" class="empty-state">Водители пока не добавлены. Нажмите “Сканировать Google Drive” или дождитесь документов из Telegram.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

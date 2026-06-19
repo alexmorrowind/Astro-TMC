@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <span class="eyebrow">Telegram request</span>
+    <h1>Запросить документы</h1>
+    <p class="muted">Выберите личные чаты, подготовьте текст и фото. Collector отправит сообщения из Telegram-аккаунта.</p>
+  </div>
+</header>
+
+{% if request.query_params.get('queued') %}
+<section class="info-panel notice-panel">
+  Сообщения поставлены в очередь. Collector отправит их в ближайшие секунды.
+</section>
+{% endif %}
+
+<form class="info-panel request-form" method="post" action="/telegram/request-docs" enctype="multipart/form-data">
+  <label>
+    Текст сообщения
+    <textarea name="text" rows="7" required>{{ default_text }}</textarea>
+  </label>
+  <label>
+    Фото для шаблона
+    <input name="photo" type="file" accept="image/*">
+  </label>
+
+  <div class="chat-picker">
+    <h2>Личные чаты</h2>
+    {% for chat in chats %}
+    <label class="chat-option">
+      <input type="checkbox" name="chat_ids" value="{{ chat.chat_id }}" {% if not chat.is_active %}disabled{% endif %}>
+      <span>
+        <strong>{{ chat.title }}</strong>
+        <small>{{ chat.chat_id }} · {{ 'Active' if chat.is_active else 'Disabled' }}</small>
+        <small>{{ 'Driver: ' ~ chat.driver.full_name if chat.driver else 'No driver link yet' }}</small>
+      </span>
+    </label>
+    {% else %}
+    <p class="muted">Личных чатов пока нет. Перезапустите collector, чтобы он синхронизировал private dialogs.</p>
+    {% endfor %}
+  </div>
+
+  <button class="primary-button" type="submit">Поставить в очередь</button>
+</form>
+
+<section class="table-shell outbox-table">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Чат ID</th>
+        <th>Текст</th>
+        <th>Статус</th>
+        <th>Создано</th>
+        <th>Отправлено</th>
+        <th>Ошибка</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for message in outbox_messages %}
+      <tr>
+        <td>{{ message.chat_id }}</td>
+        <td>
+          {{ message.text[:90] }}{% if message.text|length > 90 %}...{% endif %}
+          {% if message.photo_path %}
+          <small>photo attached</small>
+          {% endif %}
+        </td>
+        <td><span class="status-pill {{ message.status.value }}">{{ message.status.value }}</span></td>
+        <td>{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ message.sent_at.strftime('%Y-%m-%d %H:%M') if message.sent_at else '-' }}</td>
+        <td>{{ message.error or '-' }}</td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="empty-state">История запросов пока пустая.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <span class="eyebrow">Суперадмин</span>
+    <h1>Компании и доступы</h1>
+  </div>
+</header>
+
+<section class="admin-grid">
+  <form class="info-panel form-panel" action="/admin/companies" method="post">
+    <h2>Новая компания</h2>
+    <label>
+      Название
+      <input name="name" required>
+    </label>
+    <button class="primary-button compact" type="submit">Добавить</button>
+  </form>
+
+  <form class="info-panel form-panel" action="/admin/users" method="post">
+    <h2>Новый пользователь</h2>
+    <label>
+      Логин
+      <input name="username" required>
+    </label>
+    <label>
+      Пароль
+      <input name="password" type="password" required>
+    </label>
+    <label>
+      Роль
+      <select name="role">
+        {% for role in roles %}
+        <option value="{{ role.value }}">{{ role.value }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Компания для менеджера
+      <select name="company_id">
+        <option value="">Без компании</option>
+        {% for company in companies %}
+        <option value="{{ company.id }}">{{ company.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="primary-button compact" type="submit">Создать</button>
+  </form>
+
+  <form class="info-panel form-panel" action="/admin/required-documents" method="post">
+    <h2>Обязательный документ</h2>
+    <label>
+      Название
+      <input name="name" required placeholder="Insurance, W9, Permit">
+    </label>
+    <label>
+      Для
+      <select name="entity_type">
+        {% for entity_type in entity_types %}
+        <option value="{{ entity_type.value }}">{{ entity_type.value }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Компания
+      <select name="company_id">
+        <option value="">Для всех компаний</option>
+        {% for company in companies %}
+        <option value="{{ company.id }}">{{ company.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Порядок
+      <input name="sort_order" type="number" value="100">
+    </label>
+    <button class="primary-button compact" type="submit">Добавить</button>
+  </form>
+</section>
+
+<section class="table-shell">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Пользователь</th>
+        <th>Роль</th>
+        <th>Компания</th>
+        <th>Создан</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in users %}
+      <tr>
+        <td>{{ item.username }}</td>
+        <td>{{ item.role.value }}</td>
+        <td>{{ item.company.name if item.company else '-' }}</td>
+        <td>{{ item.created_at.strftime('%Y-%m-%d') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="table-shell admin-table-gap">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Документ</th>
+        <th>Тип</th>
+        <th>Компания</th>
+        <th>Порядок</th>
+        <th>Статус</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in required_documents %}
+      <tr>
+        <td>{{ item.name }}</td>
+        <td>{{ item.entity_type.value }}</td>
+        <td>{{ item.company.name if item.company else 'Для всех' }}</td>
+        <td>{{ item.sort_order }}</td>
+        <td>
+          {% if item.is_active %}
+          <span class="status-pill active">Active</span>
+          {% else %}
+          <span class="status-pill failed">Disabled</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="/admin/required-documents/{{ item.id }}/toggle">
+            <button class="ghost-button compact" type="submit">{{ 'Отключить' if item.is_active else 'Включить' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="empty-state">Список обязательных документов пока пустой.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

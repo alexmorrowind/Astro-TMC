@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: tmc-driver-docs
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tmc-driver-docs-db
+          property: connectionString
+      - key: SUPERADMIN_USERNAME
+        value: admin
+      - key: SUPERADMIN_PASSWORD
+        sync: false
+      - key: TELEGRAM_INGEST_TOKEN
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: GOOGLE_CREDENTIALS_JSON
+        sync: false
+      - key: GOOGLE_DRIVE_ROOT_FOLDER_ID
+        sync: false
+      - key: GOOGLE_DRIVE_CREATE_PUBLIC_LINKS
+        value: "false"
+
+databases:
+  - name: tmc-driver-docs-db
+    plan: free

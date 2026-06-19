@@ -1,0 +1,12 @@
+.env
+*.db
+*.sqlite
+credentials.json
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.DS_Store
+uploads/
+*.session
+*.session-journal

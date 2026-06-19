@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <a class="back-link" href="/">← Таблица</a>
+    <h1>{{ driver.full_name }}</h1>
+    <p class="muted">{{ driver.company.name }} · {{ driver.status.value }}</p>
+  </div>
+</header>
+
+<section class="detail-grid">
+  <div class="info-panel">
+    <h2>Данные водителя</h2>
+    <dl class="facts">
+      <div>
+        <dt>Дата рождения</dt>
+        <dd>{{ driver.birth_date or '-' }}</dd>
+      </div>
+      <div>
+        <dt>Телефон</dt>
+        <dd>{{ driver.phone or '-' }}</dd>
+      </div>
+      <div>
+        <dt>E-mail</dt>
+        <dd>{{ driver.email or '-' }}</dd>
+      </div>
+      <div>
+        <dt>Address</dt>
+        <dd>{{ driver.address or '-' }}</dd>
+      </div>
+      <div>
+        <dt>Emergency contact</dt>
+        <dd>{{ driver.emergency_contact or '-' }}</dd>
+      </div>
+      <div>
+        <dt>Номер лицензии</dt>
+        <dd>{{ driver.license_number or '-' }}</dd>
+      </div>
+      <div>
+        <dt>Telegram</dt>
+        <dd>{{ driver.telegram_username or driver.telegram_id or '-' }}</dd>
+      </div>
+      <div>
+        <dt>Папка Google Drive</dt>
+        <dd>
+          {% if driver.drive_folder_url %}
+          <a href="{{ driver.drive_folder_url }}" target="_blank">Открыть папку</a>
+          {% else %}
+          -
+          {% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt>Group inactive</dt>
+        <dd>{{ 'Yes' if driver.group_inactive else 'No' }}</dd>
+      </div>
+    </dl>
+
+    <form class="activity-form" method="post" action="/drivers/{{ driver.id }}/activity">
+      <label>
+        Driver activity
+        <select name="group_inactive">
+          <option value="false" {% if not driver.group_inactive %}selected{% endif %}>Active</option>
+          <option value="true" {% if driver.group_inactive %}selected{% endif %}>Inactive</option>
+        </select>
+      </label>
+      <button class="primary-button compact" type="submit">Сохранить статус</button>
+    </form>
+
+    <form class="edit-form" method="post" action="/drivers/{{ driver.id }}/profile">
+      <h2>Редактировать данные</h2>
+      <label>
+        Date of birth
+        <input type="date" name="birth_date" value="{{ driver.birth_date or '' }}">
+      </label>
+      <label>
+        Phone number
+        <input name="phone" value="{{ driver.phone or '' }}" placeholder="+1 ...">
+      </label>
+      <label>
+        E-mail
+        <input type="email" name="email" value="{{ driver.email or '' }}" placeholder="driver@email.com">
+      </label>
+      <label>
+        Address
+        <textarea name="address" rows="3" placeholder="Street, city, state, ZIP">{{ driver.address or '' }}</textarea>
+      </label>
+      <label>
+        Emergency contact
+        <input name="emergency_contact" value="{{ driver.emergency_contact or '' }}">
+      </label>
+      <label>
+        CDL / License number
+        <input name="license_number" value="{{ driver.license_number or '' }}">
+      </label>
+      <button class="primary-button compact" type="submit">Сохранить данные</button>
+    </form>
+  </div>
+
+  <div class="info-panel">
+    <h2>Диск водителя</h2>
+    <div class="file-grid">
+      {% for document_name in required_documents %}
+        {% set document = (driver.documents | selectattr('display_name', 'equalto', document_name) | list | first) %}
+        {% if document %}
+        <div class="file-tile">
+          <span class="file-glyph">PDF</span>
+          <strong>{{ document.display_name }}</strong>
+          <small>{{ document.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
+          <small>{% if document.expiration_date %}Exp {{ document.expiration_date }}{% else %}No expiration date{% endif %}</small>
+          <div class="file-actions">
+            <a href="/documents/{{ document.id }}/view" target="_blank">Открыть</a>
+            <a href="/documents/{{ document.id }}/download">Скачать</a>
+          </div>
+          <form class="metadata-form" method="post" action="/documents/{{ document.id }}/metadata">
+            <label>
+              Expiration
+              <input type="date" name="expiration_date" value="{{ document.expiration_date or '' }}">
+            </label>
+            <button class="ghost-button compact" type="submit">Save</button>
+          </form>
+        </div>
+        {% else %}
+        <div class="file-tile missing-file">
+          <span class="file-glyph">--</span>
+          <strong>{{ document_name }}</strong>
+          <small>Не загружен</small>
+        </div>
+        {% endif %}
+      {% endfor %}
+      {% for document in driver.documents %}
+        {% if document.display_name not in required_documents %}
+        <div class="file-tile">
+          <span class="file-glyph">DOC</span>
+          <strong>{{ document.display_name }}</strong>
+          <small>{{ document.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
+          <small>{% if document.expiration_date %}Exp {{ document.expiration_date }}{% else %}No expiration date{% endif %}</small>
+          <div class="file-actions">
+            <a href="/documents/{{ document.id }}/view" target="_blank">Открыть</a>
+            <a href="/documents/{{ document.id }}/download">Скачать</a>
+          </div>
+          <form class="metadata-form" method="post" action="/documents/{{ document.id }}/metadata">
+            <label>
+              Expiration
+              <input type="date" name="expiration_date" value="{{ document.expiration_date or '' }}">
+            </label>
+            <button class="ghost-button compact" type="submit">Save</button>
+          </form>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

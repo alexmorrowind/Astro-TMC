@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <a class="back-link" href="/trucks">← Траки</a>
+    <h1>Unit {{ truck.unit_number }}</h1>
+    <p class="muted">{{ truck.company.name }} · {{ truck.status.value }}</p>
+  </div>
+</header>
+
+<section class="detail-grid">
+  <div class="info-panel">
+    <h2>Данные трака</h2>
+    <dl class="facts">
+      <div>
+        <dt>Year</dt>
+        <dd>{{ truck.year or '-' }}</dd>
+      </div>
+      <div>
+        <dt>Make</dt>
+        <dd>{{ truck.make or '-' }}</dd>
+      </div>
+      <div>
+        <dt>VIN</dt>
+        <dd>{{ truck.vin or '-' }}</dd>
+      </div>
+      <div>
+        <dt>License plate</dt>
+        <dd>{{ truck.license_plate or '-' }}</dd>
+      </div>
+      <div>
+        <dt>Google Drive</dt>
+        <dd>
+          {% if truck.drive_folder_url %}
+          <a href="{{ truck.drive_folder_url }}" target="_blank">Открыть папку</a>
+          {% else %}
+          -
+          {% endif %}
+        </dd>
+      </div>
+    </dl>
+
+    <form class="edit-form" method="post" action="/trucks/{{ truck.id }}/profile">
+      <h2>Редактировать данные</h2>
+      <label>
+        Year
+        <input name="year" value="{{ truck.year or '' }}" placeholder="2024">
+      </label>
+      <label>
+        Make
+        <input name="make" value="{{ truck.make or '' }}" placeholder="Freightliner">
+      </label>
+      <label>
+        VIN
+        <input name="vin" value="{{ truck.vin or '' }}">
+      </label>
+      <label>
+        License plate
+        <input name="license_plate" value="{{ truck.license_plate or '' }}">
+      </label>
+      <button class="primary-button compact" type="submit">Сохранить данные</button>
+    </form>
+  </div>
+
+  <div class="info-panel">
+    <h2>Документы трака</h2>
+    <div class="file-grid">
+      {% for document_name in required_documents %}
+        {% set document = (truck.documents | selectattr('display_name', 'equalto', document_name) | list | first) %}
+        {% if document %}
+        <div class="file-tile">
+          <span class="file-glyph">DOC</span>
+          <strong>{{ document.display_name }}</strong>
+          <small>{{ document.original_filename or document.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
+          <small>{% if document.expiration_date %}Exp {{ document.expiration_date }}{% else %}No expiration date{% endif %}</small>
+          <div class="file-actions">
+            <a href="/truck-documents/{{ document.id }}/view" target="_blank">Открыть</a>
+            <a href="/truck-documents/{{ document.id }}/download">Скачать</a>
+          </div>
+          <form class="metadata-form" method="post" action="/truck-documents/{{ document.id }}/metadata">
+            <label>
+              Expiration
+              <input type="date" name="expiration_date" value="{{ document.expiration_date or '' }}">
+            </label>
+            <button class="ghost-button compact" type="submit">Save</button>
+          </form>
+        </div>
+        {% else %}
+        <div class="file-tile missing-file">
+          <span class="file-glyph">--</span>
+          <strong>{{ document_name }}</strong>
+          <small>Не загружен</small>
+        </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

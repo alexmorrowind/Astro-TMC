@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="login-panel">
+  <div class="login-copy">
+    <span class="eyebrow">Локальная TMS/CRM</span>
+    <h1>Документы водителей в одном рабочем контуре</h1>
+    <p>Вход для менеджеров и суперадмина. Данные водителей, статусы документов и ссылки Google Drive собраны в одной панели.</p>
+  </div>
+  <form class="auth-card" method="post" action="/login">
+    <label>
+      Логин
+      <input name="username" autocomplete="username" required autofocus>
+    </label>
+    <label>
+      Пароль
+      <input name="password" type="password" autocomplete="current-password" required>
+    </label>
+    {% if error %}
+    <p class="form-error">{{ error }}</p>
+    {% endif %}
+    <button type="submit" class="primary-button">Войти</button>
+  </form>
+</section>
+{% endblock %}

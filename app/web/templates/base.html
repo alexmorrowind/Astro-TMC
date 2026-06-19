@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title or "TMC Driver Docs" }}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      {% if user %}
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">T</span>
+          <div>
+            <strong>TMC Docs</strong>
+            <small>{{ user.role.value }}</small>
+          </div>
+        </div>
+        <nav class="nav">
+          <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Таблица</a>
+          <a href="/trucks" class="{% if request.url.path.startswith('/trucks') %}active{% endif %}">Траки</a>
+          {% if user.role.value == 'superadmin' %}
+          <a href="/companies" class="{% if request.url.path == '/companies' %}active{% endif %}">Компании</a>
+          {% endif %}
+          <a href="/telegram/groups" class="{% if request.url.path == '/telegram/groups' %}active{% endif %}">Telegram</a>
+          <a href="/telegram/request-docs" class="{% if request.url.path == '/telegram/request-docs' %}active{% endif %}">Запрос доков</a>
+          <a href="/telegram/incoming" class="{% if request.url.path == '/telegram/incoming' %}active{% endif %}">Входящие доки</a>
+          {% if user.role.value == 'superadmin' %}
+          <a href="/admin" class="{% if request.url.path == '/admin' %}active{% endif %}">Администрирование</a>
+          {% endif %}
+        </nav>
+        <form action="/logout" method="post" class="logout-form">
+          <button type="submit" class="ghost-button">Выйти</button>
+        </form>
+      </aside>
+      {% endif %}
+      <main class="content {% if not user %}centered{% endif %}">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </body>
+</html>

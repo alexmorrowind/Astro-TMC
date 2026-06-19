@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <span class="eyebrow">Telegram collector</span>
+    <h1>Подключенные чаты</h1>
+    <p class="muted">Collector сам находит личные чаты, группы и каналы аккаунта. Активные чаты отправляют документы во входящие.</p>
+  </div>
+</header>
+
+<section class="info-panel telegram-help">
+  <h2>Как это работает</h2>
+  <div class="command-grid">
+    <div>
+      <strong>1. Добавьте служебный аккаунт</strong>
+      <p>Аккаунт collector видит личные чаты и те группы/каналы, где он состоит.</p>
+    </div>
+    <div>
+      <strong>2. Запустите collector</strong>
+      <code>.venv/bin/python -m app.collector.main</code>
+      <p>При старте он сам добавит сюда личные чаты, группы и каналы аккаунта.</p>
+    </div>
+    <div>
+      <strong>3. Управляйте статусом</strong>
+      <p>Включайте нужные чаты, отключайте лишние и привязывайте компанию, когда потребуется.</p>
+    </div>
+  </div>
+</section>
+
+{% if user.role.value == 'superadmin' %}
+<form class="toolbar" method="post" action="/telegram/groups">
+  <label>
+    Chat ID
+    <input name="chat_id" required placeholder="-1001234567890">
+  </label>
+  <label>
+    Название
+    <input name="title" required placeholder="Driver John / Demo Dispatch">
+  </label>
+  <label>
+    Тип
+    <select name="chat_type">
+      <option value="group">group</option>
+      <option value="supergroup">supergroup</option>
+      <option value="channel">channel</option>
+      <option value="private">private</option>
+    </select>
+  </label>
+  <label>
+    Компания
+    <select name="company_id">
+      <option value="">Без компании</option>
+      {% for company in companies %}
+      <option value="{{ company.id }}">{{ company.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <button class="primary-button compact" type="submit">Добавить</button>
+</form>
+{% endif %}
+
+<section class="table-shell">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Чат</th>
+        <th>Компания</th>
+        <th>Chat ID</th>
+        <th>Тип</th>
+        <th>Сообщений</th>
+        <th>Последняя активность</th>
+        <th>Статус</th>
+        <th>Обновлено</th>
+        {% if user.role.value == 'superadmin' %}
+        <th>Привязка</th>
+        <th></th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for group in groups %}
+      <tr>
+        <td>{{ group.title }}</td>
+        <td>{{ group.company.name if group.company else '-' }}</td>
+        <td>{{ group.chat_id }}</td>
+        <td>{{ group.chat_type }}</td>
+        <td>{{ group.message_count or 0 }}</td>
+        <td>{{ group.last_seen_at.strftime('%Y-%m-%d %H:%M') if group.last_seen_at else '-' }}</td>
+        <td>
+          {% if group.is_active %}
+          <span class="status-pill active">Active</span>
+          {% else %}
+          <span class="status-pill pending">Disabled</span>
+          {% endif %}
+        </td>
+        <td>{{ group.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        {% if user.role.value == 'superadmin' %}
+        <td>
+          <form class="compact-row-form" method="post" action="/telegram/groups/{{ group.id }}/assign-driver">
+            <select name="company_id">
+              <option value="">Компания</option>
+              {% for company in companies %}
+              <option value="{{ company.id }}" {% if group.company_id == company.id %}selected{% endif %}>{{ company.name }}</option>
+              {% endfor %}
+            </select>
+            <select name="driver_id">
+              <option value="">Водитель</option>
+              {% for driver in drivers %}
+              <option value="{{ driver.id }}" {% if group.driver_id == driver.id %}selected{% endif %}>{{ driver.full_name }}</option>
+              {% endfor %}
+            </select>
+            <button class="ghost-button compact" type="submit">Сохранить</button>
+          </form>
+        </td>
+        <td>
+          {% if group.is_active %}
+          <form method="post" action="/telegram/groups/{{ group.id }}/disable">
+            <button class="ghost-button compact" type="submit">Отключить</button>
+          </form>
+          {% else %}
+          <form method="post" action="/telegram/groups/{{ group.id }}/enable">
+            <button class="primary-button compact" type="submit">Включить</button>
+          </form>
+          {% endif %}
+        </td>
+        {% endif %}
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="10" class="empty-state">Пока нет чатов. Запустите collector, и он сам добавит сюда диалоги аккаунта.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

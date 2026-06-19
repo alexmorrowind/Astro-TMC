@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <span class="eyebrow">Справочник</span>
+    <h1>Компании</h1>
+    <p class="muted">Добавляйте компании и скрывайте те, которые не должны показываться в таблицах.</p>
+  </div>
+</header>
+
+<section class="info-panel form-section">
+  <h2>Добавить компанию</h2>
+  <form class="company-add-form" method="post" action="/companies">
+    <label>
+      Название компании
+      <input name="name" placeholder="Company name" required>
+    </label>
+    <button class="primary-button compact" type="submit">Добавить</button>
+  </form>
+</section>
+
+<section class="table-shell">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Компания</th>
+        <th>Drivers</th>
+        <th>Trucks</th>
+        <th>Missing docs</th>
+        <th>Inactive</th>
+        <th>Статус</th>
+        <th>Действие</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in company_summaries %}
+      <tr class="{% if item.company.is_hidden %}muted-row{% endif %}">
+        <td>
+          <a class="driver-link" href="/?company_id={{ item.company.id }}">{{ item.company.name }}</a>
+        </td>
+        <td>{{ item.drivers }}</td>
+        <td>{{ item.trucks }}</td>
+        <td>{{ item.missing_drivers }}</td>
+        <td>{{ item.inactive_drivers }}</td>
+        <td>
+          {% if item.company.is_hidden %}
+          <span class="status-pill pending">Hidden</span>
+          {% else %}
+          <span class="status-pill active">Visible</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="/companies/{{ item.company.id }}/toggle-hidden">
+            <button class="ghost-button compact" type="submit">
+              {% if item.company.is_hidden %}Показать{% else %}Скрыть{% endif %}
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="7" class="empty-state">Компаний пока нет.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

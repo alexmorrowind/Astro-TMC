@@ -199,6 +199,7 @@ class TelegramGroup(Base):
     is_active: Mapped[bool] = mapped_column(default=True)
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_message_from: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_message_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     message_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

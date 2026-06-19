@@ -39,23 +39,41 @@
   <img class="template-preview" src="/static/assets/hiring_driver_documents.jpg" alt="Hiring driver documents template">
   {% endif %}
 
+  <div class="request-submit-row">
+    <button class="primary-button" type="submit">Поставить в очередь</button>
+    <span class="muted">Отправка доступна только в активные личные чаты. Группы и каналы здесь только для просмотра.</span>
+  </div>
+
   <div class="chat-picker">
-    <h2>Личные чаты</h2>
+    <h2>Telegram чаты <small>{{ private_chat_count }} private · {{ group_chat_count }} groups/channels</small></h2>
     {% for chat in chats %}
-    <label class="chat-option">
-      <input type="checkbox" name="chat_ids" value="{{ chat.chat_id }}" {% if not chat.is_active %}disabled{% endif %}>
-      <span>
-        <strong>{{ chat.title }}</strong>
-        <small>{{ chat.chat_id }} · {{ 'Active' if chat.is_active else 'Disabled' }}</small>
-        <small>{{ 'Driver: ' ~ chat.driver.full_name if chat.driver else 'No driver link yet' }}</small>
+    {% set can_send = chat.chat_type == 'private' and chat.is_active %}
+    <label class="chat-option telegram-chat-card {% if can_send %}sendable{% else %}readonly-chat{% endif %}" style="--chat-hue: {{ (loop.index0 * 47) % 360 }};">
+      <input type="checkbox" name="chat_ids" value="{{ chat.chat_id }}" {% if not can_send %}disabled{% endif %}>
+      <span class="chat-avatar">{{ (chat.title[:1] if chat.title else 'T')|upper }}</span>
+      <span class="chat-content">
+        <span class="chat-title-line">
+          <strong>{{ chat.title }}</strong>
+          <span class="chat-type-badge {{ chat.chat_type }}">{{ chat.chat_type }}</span>
+        </span>
+        <span class="chat-meta">
+          {{ chat.chat_id }} · {{ 'Active' if chat.is_active else 'Disabled' }}
+          {% if chat.last_seen_at %} · {{ chat.last_seen_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+        </span>
+        <span class="chat-preview">
+          {% if chat.last_message_from %}<b>{{ chat.last_message_from }}:</b> {% endif %}
+          {{ chat.last_message_text or 'No synced message yet' }}
+        </span>
+        <span class="chat-driver">{{ 'Driver: ' ~ chat.driver.full_name if chat.driver else 'No driver link yet' }}</span>
+        {% if not can_send %}
+        <span class="chat-send-note">Only private chats can receive document requests</span>
+        {% endif %}
       </span>
     </label>
     {% else %}
-    <p class="muted">Личных чатов пока нет. Перезапустите collector, чтобы он синхронизировал private dialogs.</p>
+    <p class="muted">Чатов пока нет. Перезапустите collector, чтобы он синхронизировал Telegram dialogs.</p>
     {% endfor %}
   </div>
-
-  <button class="primary-button" type="submit">Поставить в очередь</button>
 </form>
 
 <section class="table-shell outbox-table">

@@ -42,11 +42,20 @@ def init_db() -> None:
 
 
 def apply_sqlite_migrations() -> None:
-    if not get_settings().database_url.startswith("sqlite"):
-        return
-
     inspector = inspect(engine)
     table_names = set(inspector.get_table_names())
+    common_statements = []
+    if "telegram_groups" in table_names:
+        common_columns = {column["name"] for column in inspector.get_columns("telegram_groups")}
+        if "last_message_text" not in common_columns:
+            common_statements.append("ALTER TABLE telegram_groups ADD COLUMN last_message_text TEXT")
+
+    if not get_settings().database_url.startswith("sqlite"):
+        with engine.begin() as connection:
+            for statement in common_statements:
+                connection.execute(text(statement))
+        return
+
     if "telegram_groups" not in table_names:
         telegram_group_statements = []
     else:
@@ -109,7 +118,8 @@ def apply_sqlite_migrations() -> None:
 
     with engine.begin() as connection:
         for statement in (
-            telegram_group_statements
+            common_statements
+            + telegram_group_statements
             + document_statements
             + driver_statements
             + truck_statements

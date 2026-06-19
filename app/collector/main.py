@@ -45,6 +45,19 @@ def guess_file_name(event) -> str:
     return f"telegram_{message.id}{extension}"
 
 
+def message_preview(message) -> str | None:
+    if not message:
+        return None
+    text = getattr(message, "message", None)
+    if text:
+        return " ".join(text.strip().split())[:500]
+    if getattr(message, "photo", None):
+        return "[photo]"
+    if getattr(message, "document", None):
+        return "[document]"
+    return None
+
+
 def should_accept_chat(chat_id: int) -> bool:
     settings = get_settings()
     if not settings.telegram_collector_require_connected_groups:
@@ -110,14 +123,23 @@ async def sync_dialogs(client: TelegramClient) -> None:
                 continue
             chat_type = dialog_chat_type(dialog)
             title = dialog.name or str(dialog.id)
+            last_message_text = message_preview(getattr(dialog, "message", None))
             upsert_discovered_telegram_group(
                 db,
                 chat_id=dialog.id,
                 title=title,
                 chat_type=chat_type,
                 default_active=default_active,
+                last_message_text=last_message_text,
             )
-            remote_chats.append({"chat_id": dialog.id, "title": title, "chat_type": chat_type})
+            remote_chats.append(
+                {
+                    "chat_id": dialog.id,
+                    "title": title,
+                    "chat_type": chat_type,
+                    "last_message_text": last_message_text,
+                }
+            )
             discovered += 1
         db.commit()
     try:
@@ -177,9 +199,6 @@ async def send_to_backend(
 
 
 async def handle_new_message(event) -> None:
-    if not is_supported_media(event):
-        return
-
     chat = await event.get_chat()
     sender = await event.get_sender()
     chat_id = event.chat_id
@@ -192,6 +211,7 @@ async def handle_new_message(event) -> None:
     from_username = getattr(sender, "username", None) or sender_name or str(getattr(sender, "id", ""))
     chat_title = getattr(chat, "title", None) or sender_name or getattr(chat, "username", None) or str(chat_id)
     chat_type = event_chat_type(chat)
+    last_message_text = message_preview(event.message)
     with SessionLocal() as db:
         upsert_discovered_telegram_group(
             db,
@@ -199,6 +219,7 @@ async def handle_new_message(event) -> None:
             title=chat_title,
             chat_type=chat_type,
             default_active=not get_settings().telegram_collector_require_connected_groups,
+            last_message_text=last_message_text,
         )
         touch_group_activity(
             db,
@@ -206,6 +227,7 @@ async def handle_new_message(event) -> None:
             title=chat_title,
             chat_type=chat_type,
             from_username=from_username,
+            message_text=last_message_text,
         )
         db.commit()
     try:
@@ -216,10 +238,14 @@ async def handle_new_message(event) -> None:
                 "title": chat_title,
                 "chat_type": chat_type,
                 "from_username": from_username,
+                "last_message_text": last_message_text,
             },
         )
     except Exception as exc:
         print(f"Remote Telegram chat activity sync failed for {chat_id}: {exc}")
+
+    if not is_supported_media(event):
+        return
 
     file_name = guess_file_name(event)
     mime_type = event.message.file.mime_type if event.message.file else None

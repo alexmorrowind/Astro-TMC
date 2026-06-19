@@ -43,6 +43,7 @@ def upsert_discovered_telegram_group(
     title: str,
     chat_type: str,
     default_active: bool,
+    last_message_text: str | None = None,
 ) -> TelegramGroup:
     group = db.scalar(select(TelegramGroup).where(TelegramGroup.chat_id == chat_id))
     if group is None:
@@ -56,6 +57,8 @@ def upsert_discovered_telegram_group(
     else:
         group.title = title
         group.chat_type = chat_type
+    if last_message_text:
+        group.last_message_text = last_message_text
     db.flush()
     return group
 
@@ -74,6 +77,7 @@ def touch_group_activity(
     title: str,
     chat_type: str,
     from_username: str | None,
+    message_text: str | None,
 ) -> TelegramGroup | None:
     group = db.scalar(select(TelegramGroup).where(TelegramGroup.chat_id == chat_id))
     if group is None or not group.is_active:
@@ -83,6 +87,8 @@ def touch_group_activity(
     group.chat_type = chat_type
     group.last_seen_at = datetime.utcnow()
     group.last_message_from = from_username
+    if message_text:
+        group.last_message_text = message_text
     group.message_count = (group.message_count or 0) + 1
     db.flush()
     return group
@@ -95,6 +101,7 @@ def touch_or_create_group_activity(
     title: str,
     chat_type: str,
     from_username: str | None,
+    message_text: str | None,
     default_active: bool,
 ) -> TelegramGroup:
     group = db.scalar(select(TelegramGroup).where(TelegramGroup.chat_id == chat_id))
@@ -110,6 +117,8 @@ def touch_or_create_group_activity(
     group.chat_type = chat_type
     group.last_seen_at = datetime.utcnow()
     group.last_message_from = from_username
+    if message_text:
+        group.last_message_text = message_text
     group.message_count = (group.message_count or 0) + 1
     db.flush()
     return group

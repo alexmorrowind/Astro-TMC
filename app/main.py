@@ -159,6 +159,37 @@ def company_summaries(db: Session, include_hidden: bool = False) -> list[dict]:
     return summaries
 
 
+def visible_active_drivers(db: Session, company_id: int | None = None) -> list[Driver]:
+    drivers = list_drivers_with_documents(db, company_id=company_id)
+    return [
+        driver
+        for driver in drivers
+        if driver.terminated_at is None
+        and not driver.company.is_hidden
+        and driver.company.terminated_at is None
+    ]
+
+
+def visible_active_trucks(db: Session, company_id: int | None = None) -> list[Truck]:
+    trucks = list_trucks_with_documents(db, company_id=company_id)
+    return [
+        truck
+        for truck in trucks
+        if truck.terminated_at is None
+        and not truck.company.is_hidden
+        and truck.company.terminated_at is None
+    ]
+
+
+def telegram_preview_text(value: str | None, limit: int = 500) -> str | None:
+    if not value:
+        return None
+    cleaned = " ".join(value.strip().split())
+    if not cleaned:
+        return None
+    return cleaned[:limit]
+
+
 def document_state(document: Document | TruckDocument | None) -> dict:
     if not document:
         return {"label": "Missing", "detail": "No file", "css": "missing", "expiration": None}
@@ -230,16 +261,10 @@ def dashboard(
     companies = list(db.scalars(companies_stmt))
     effective_company_id = user.company_id if user.role == UserRole.MANAGER else company_id
 
-    drivers = list_drivers_with_documents(db, company_id=effective_company_id)
-    drivers = [driver for driver in drivers if driver.terminated_at is None]
+    stats_drivers = visible_active_drivers(db, company_id=effective_company_id)
+    drivers = stats_drivers
     if user.role == UserRole.SUPERADMIN and effective_company_id is None:
         drivers = []
-    if user.role == UserRole.SUPERADMIN:
-        drivers = [
-            driver
-            for driver in drivers
-            if not driver.company.is_hidden and driver.company.terminated_at is None
-        ]
     if status_filter:
         drivers = [driver for driver in drivers if driver.status.value == status_filter]
     if q:
@@ -251,12 +276,20 @@ def dashboard(
             or needle in (driver.phone or "").lower()
             or needle in (driver.license_number or "").lower()
         ]
+        if user.role == UserRole.SUPERADMIN and effective_company_id is None:
+            stats_drivers = [
+                driver
+                for driver in stats_drivers
+                if needle in driver.full_name.lower()
+                or needle in (driver.phone or "").lower()
+                or needle in (driver.license_number or "").lower()
+            ]
 
     stats = {
-        "total": len(drivers),
-        "active": sum(1 for driver in drivers if driver.status == DriverStatus.ACTIVE),
-        "missing": sum(1 for driver in drivers if driver.status == DriverStatus.MISSING_DOCS),
-        "pending": sum(1 for driver in drivers if driver.status == DriverStatus.PENDING),
+        "total": len(stats_drivers),
+        "active": sum(1 for driver in stats_drivers if driver.status == DriverStatus.ACTIVE),
+        "missing": sum(1 for driver in stats_drivers if driver.status == DriverStatus.MISSING_DOCS),
+        "pending": sum(1 for driver in stats_drivers if driver.status == DriverStatus.PENDING),
     }
     required_documents = list_required_document_names(
         db,
@@ -298,16 +331,10 @@ def trucks_page(
         companies_stmt = companies_stmt.where(Company.is_hidden == False)
     companies = list(db.scalars(companies_stmt))
     effective_company_id = user.company_id if user.role == UserRole.MANAGER else company_id
-    trucks = list_trucks_with_documents(db, company_id=effective_company_id)
-    trucks = [truck for truck in trucks if truck.terminated_at is None]
+    stats_trucks = visible_active_trucks(db, company_id=effective_company_id)
+    trucks = stats_trucks
     if user.role == UserRole.SUPERADMIN and effective_company_id is None:
         trucks = []
-    if user.role == UserRole.SUPERADMIN:
-        trucks = [
-            truck
-            for truck in trucks
-            if not truck.company.is_hidden and truck.company.terminated_at is None
-        ]
     if status_filter:
         trucks = [truck for truck in trucks if truck.status.value == status_filter]
     if q:
@@ -320,12 +347,21 @@ def trucks_page(
             or needle in (truck.license_plate or "").lower()
             or needle in (truck.make or "").lower()
         ]
+        if user.role == UserRole.SUPERADMIN and effective_company_id is None:
+            stats_trucks = [
+                truck
+                for truck in stats_trucks
+                if needle in truck.unit_number.lower()
+                or needle in (truck.vin or "").lower()
+                or needle in (truck.license_plate or "").lower()
+                or needle in (truck.make or "").lower()
+            ]
 
     stats = {
-        "total": len(trucks),
-        "active": sum(1 for truck in trucks if truck.status == DriverStatus.ACTIVE),
-        "missing": sum(1 for truck in trucks if truck.status == DriverStatus.MISSING_DOCS),
-        "pending": sum(1 for truck in trucks if truck.status == DriverStatus.PENDING),
+        "total": len(stats_trucks),
+        "active": sum(1 for truck in stats_trucks if truck.status == DriverStatus.ACTIVE),
+        "missing": sum(1 for truck in stats_trucks if truck.status == DriverStatus.MISSING_DOCS),
+        "pending": sum(1 for truck in stats_trucks if truck.status == DriverStatus.PENDING),
     }
     required_documents = list_required_document_names(
         db,
@@ -812,10 +848,11 @@ def assign_group_driver(
 def request_docs_page(request: Request, db: Session = Depends(get_db)):
     user = require_user(request, db)
     effective_company_id = user.company_id if user.role == UserRole.MANAGER else None
-    chats_stmt = select(TelegramGroup).where(TelegramGroup.chat_type == "private").order_by(TelegramGroup.title)
+    chats_stmt = select(TelegramGroup).order_by(TelegramGroup.updated_at.desc(), TelegramGroup.title)
     if effective_company_id:
         chats_stmt = chats_stmt.where(TelegramGroup.company_id == effective_company_id)
     chats = list(db.scalars(chats_stmt))
+    chats.sort(key=lambda chat: (0 if chat.chat_type == "private" else 1, not chat.is_active, chat.title.lower()))
     outbox_stmt = (
         select(TelegramOutboxMessage)
         .outerjoin(TelegramGroup, TelegramGroup.chat_id == TelegramOutboxMessage.chat_id)
@@ -860,6 +897,8 @@ def request_docs_page(request: Request, db: Session = Depends(get_db)):
         {
             "user": user,
             "chats": chats,
+            "private_chat_count": sum(1 for chat in chats if chat.chat_type == "private"),
+            "group_chat_count": sum(1 for chat in chats if chat.chat_type != "private"),
             "default_text": message_templates["en"],
             "message_templates": message_templates,
             "default_photo_available": DEFAULT_REQUEST_PHOTO.exists(),
@@ -1340,6 +1379,7 @@ async def sync_telegram_chats(
             title=str(item.get("title") or chat_id),
             chat_type=str(item.get("chat_type") or "group"),
             default_active=default_active,
+            last_message_text=telegram_preview_text(item.get("last_message_text")),
         )
         synced += 1
     db.commit()
@@ -1367,6 +1407,7 @@ async def sync_telegram_chat_activity(
         title=str(payload.get("title") or chat_id),
         chat_type=str(payload.get("chat_type") or "group"),
         from_username=payload.get("from_username"),
+        message_text=telegram_preview_text(payload.get("last_message_text")),
         default_active=not get_settings().telegram_collector_require_connected_groups,
     )
     db.commit()

@@ -17,8 +17,15 @@
 
 <form class="info-panel request-form" method="post" action="/telegram/request-docs" enctype="multipart/form-data">
   <label>
-    Текст сообщения
-    <textarea name="text" rows="7" required>{{ default_text }}</textarea>
+    <span class="label-header">
+      Текст сообщения
+      <span class="language-menu" aria-label="Message language">
+        <button type="button" class="language-button active" data-template-target="request-message-text" data-template-text="{{ message_templates.en }}">English</button>
+        <button type="button" class="language-button" data-template-target="request-message-text" data-template-text="{{ message_templates.ru }}">Русский</button>
+        <button type="button" class="language-button" data-template-target="request-message-text" data-template-text="{{ message_templates.uz }}">O‘zbek</button>
+      </span>
+    </span>
+    <textarea id="request-message-text" name="text" rows="7" required>{{ default_text }}</textarea>
   </label>
   <label>
     Фото для шаблона

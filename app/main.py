@@ -758,22 +758,43 @@ def request_docs_page(request: Request, db: Session = Depends(get_db)):
     if effective_company_id:
         outbox_stmt = outbox_stmt.where(TelegramGroup.company_id == effective_company_id)
     outbox_messages = list(db.scalars(outbox_stmt))
-    default_text = (
-        "Hello. Please send updated driver documents here:\n"
-        "- CDL\n"
-        "- Medical Examination Certificate (Medical Card)\n"
-        "- Social Security number (SSN)\n"
-        "- Work Authorization / Green Card / US Passport\n"
-        "- Emergency contact email and phone\n"
-        "Thank you."
-    )
+    message_templates = {
+        "en": (
+            "Hello. Please send updated driver documents here:\n"
+            "- CDL\n"
+            "- Medical Examination Certificate (Medical Card)\n"
+            "- Social Security number (SSN)\n"
+            "- Work Authorization / Green Card / US Passport\n"
+            "- Emergency contact email and phone\n"
+            "Thank you."
+        ),
+        "ru": (
+            "Здравствуйте. Пожалуйста, отправьте обновленные документы водителя сюда:\n"
+            "- CDL\n"
+            "- Medical Examination Certificate (Medical Card)\n"
+            "- Social Security number (SSN)\n"
+            "- Work Authorization / Green Card / US Passport\n"
+            "- Emergency contact email and phone\n"
+            "Спасибо."
+        ),
+        "uz": (
+            "Assalomu alaykum. Iltimos, yangilangan haydovchi hujjatlarini shu yerga yuboring:\n"
+            "- CDL\n"
+            "- Medical Examination Certificate (Medical Card)\n"
+            "- Social Security number (SSN)\n"
+            "- Work Authorization / Green Card / US Passport\n"
+            "- Emergency contact email and phone\n"
+            "Rahmat."
+        ),
+    }
     return render(
         request,
         "request_docs.html",
         {
             "user": user,
             "chats": chats,
-            "default_text": default_text,
+            "default_text": message_templates["en"],
+            "message_templates": message_templates,
             "default_photo_available": DEFAULT_REQUEST_PHOTO.exists(),
             "outbox_messages": outbox_messages,
         },

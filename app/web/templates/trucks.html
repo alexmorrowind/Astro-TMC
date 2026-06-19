@@ -70,6 +70,35 @@
   <a href="/trucks" class="ghost-button compact">Сброс</a>
 </form>
 
+{% if company_summaries %}
+<section class="table-shell company-list-shell">
+  <table class="data-table company-list-table">
+    <thead>
+      <tr>
+        <th>Company</th>
+        <th>Drivers</th>
+        <th>Trucks</th>
+        <th>Missing drivers</th>
+        <th>Inactive drivers</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in company_summaries %}
+      <tr class="{% if selected_company_id == item.company.id %}selected-row{% endif %}">
+        <td>{{ item.company.name }}</td>
+        <td>{{ item.drivers }}</td>
+        <td>{{ item.trucks }}</td>
+        <td>{{ item.missing_drivers }}</td>
+        <td>{{ item.inactive_drivers }}</td>
+        <td><a class="ghost-button compact" href="/trucks?company_id={{ item.company.id }}">Open trucks</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
 <section class="table-shell">
   <table class="data-table overview-table">
     <thead>
@@ -148,7 +177,7 @@
           {% if selected_company_id %}
           У этой компании пока нет активных траков.
           {% else %}
-          Выберите компанию сверху, чтобы увидеть траки.
+          Выберите компанию из списка, чтобы увидеть траки.
           {% endif %}
         </td>
       </tr>

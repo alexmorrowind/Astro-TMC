@@ -387,10 +387,30 @@ select {
   overflow: auto;
 }
 
+.company-list-shell {
+  margin-bottom: 16px;
+}
+
 .data-table {
   width: 100%;
   border-collapse: collapse;
   min-width: 920px;
+}
+
+.company-list-table {
+  min-width: 760px;
+}
+
+.company-list-table td:first-child {
+  font-weight: 800;
+}
+
+.selected-row td {
+  background: #f5f9ff;
+}
+
+.selected-row td:first-child {
+  color: var(--blue);
 }
 
 .wide-table {

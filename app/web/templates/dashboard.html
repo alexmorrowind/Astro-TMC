@@ -22,20 +22,6 @@
 </section>
 {% endif %}
 
-{% if company_summaries %}
-<section class="company-summary-grid company-picker" aria-label="Компании">
-  {% for item in company_summaries %}
-  <div class="company-card {% if selected_company_id == item.company.id %}selected{% endif %}">
-    <a href="/?company_id={{ item.company.id }}">
-      <span>{{ item.company.name }}</span>
-      <strong>{{ item.drivers }} drivers</strong>
-      <small>{{ item.trucks }} trucks · {{ item.missing_drivers }} missing · {{ item.inactive_drivers }} inactive</small>
-    </a>
-  </div>
-  {% endfor %}
-</section>
-{% endif %}
-
 <section class="stats-grid" aria-label="Статистика">
   <div class="stat-item">
     <small>Drivers</small>
@@ -83,6 +69,35 @@
   <button type="submit" class="primary-button compact">Фильтровать</button>
   <a href="/" class="ghost-button compact">Сброс</a>
 </form>
+
+{% if company_summaries %}
+<section class="table-shell company-list-shell">
+  <table class="data-table company-list-table">
+    <thead>
+      <tr>
+        <th>Company</th>
+        <th>Drivers</th>
+        <th>Trucks</th>
+        <th>Missing</th>
+        <th>Inactive</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in company_summaries %}
+      <tr class="{% if selected_company_id == item.company.id %}selected-row{% endif %}">
+        <td>{{ item.company.name }}</td>
+        <td>{{ item.drivers }}</td>
+        <td>{{ item.trucks }}</td>
+        <td>{{ item.missing_drivers }}</td>
+        <td>{{ item.inactive_drivers }}</td>
+        <td><a class="ghost-button compact" href="/?company_id={{ item.company.id }}">Open drivers</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
 
 <section class="table-shell">
   <table class="data-table overview-table">
@@ -164,7 +179,7 @@
           {% if selected_company_id %}
           У этой компании пока нет активных водителей.
           {% else %}
-          Выберите компанию сверху, чтобы увидеть водителей.
+          Выберите компанию из списка, чтобы увидеть водителей.
           {% endif %}
         </td>
       </tr>

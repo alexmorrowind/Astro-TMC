@@ -336,6 +336,7 @@ def trucks_page(
             "trucks": trucks,
             "truck_rows": truck_rows,
             "stats": stats,
+            "company_summaries": company_summaries(db) if user.role == UserRole.SUPERADMIN else [],
             "required_documents": required_documents,
             "selected_company_id": effective_company_id,
             "status_filter": status_filter or "",

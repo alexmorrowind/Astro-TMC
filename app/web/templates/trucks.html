@@ -91,7 +91,16 @@
         <td>{{ item.trucks }}</td>
         <td>{{ item.missing_drivers }}</td>
         <td>{{ item.inactive_drivers }}</td>
-        <td><a class="ghost-button compact" href="/trucks?company_id={{ item.company.id }}">Open trucks</a></td>
+        <td>
+          <div class="row-actions">
+            <a class="ghost-button compact" href="/trucks?company_id={{ item.company.id }}">Open trucks</a>
+            {% if user.role.value == 'superadmin' %}
+            <form method="post" action="/companies/{{ item.company.id }}/terminate">
+              <button class="ghost-button compact danger-button" type="submit">Terminate</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
       </tr>
       {% endfor %}
     </tbody>

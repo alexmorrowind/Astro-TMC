@@ -560,32 +560,45 @@ textarea {
   resize: vertical;
 }
 
-.chat-picker {
+.chat-toolbar {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(260px, 1fr) minmax(240px, 340px) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f8fafc;
 }
 
-.chat-picker h2 {
-  grid-column: 1 / -1;
-  margin-bottom: 0;
+.chat-toolbar h2 {
+  margin: 0;
 }
 
-.chat-picker h2 small {
+.chat-toolbar h2 small {
   color: var(--muted);
   font-size: 13px;
   margin-left: 8px;
 }
 
-.request-submit-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: #f8fafc;
+.chat-toolbar .muted {
+  margin: 4px 0 0;
+}
+
+.chat-search {
+  display: grid;
+  gap: 4px;
+  font-weight: 800;
+}
+
+.chat-search input {
+  min-height: 40px;
+}
+
+.chat-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 10px;
 }
 
 .chat-option {
@@ -709,6 +722,11 @@ textarea {
 
 .chat-send-note {
   color: #9a6810;
+}
+
+.chat-search-empty {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 
 .switch-row {
@@ -1086,6 +1104,7 @@ code {
   .stats-grid,
   .detail-grid,
   .admin-grid,
+  .chat-toolbar,
   .details-panel,
   .command-grid,
   .login-panel {

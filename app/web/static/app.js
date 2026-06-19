@@ -28,3 +28,31 @@ document.addEventListener("click", (event) => {
   target.hidden = !target.hidden;
   toggle.textContent = target.hidden ? "More details" : "Hide details";
 });
+
+document.addEventListener("input", (event) => {
+  const search = event.target.closest("[data-chat-search]");
+  if (!search) {
+    return;
+  }
+
+  const needle = search.value.trim().toLowerCase();
+  const picker = document.querySelector("[data-chat-picker]");
+  if (!picker) {
+    return;
+  }
+
+  let visibleCount = 0;
+  picker.querySelectorAll("[data-chat-search-text]").forEach((card) => {
+    const haystack = (card.dataset.chatSearchText || "").toLowerCase();
+    const isVisible = !needle || haystack.includes(needle);
+    card.hidden = !isVisible;
+    if (isVisible) {
+      visibleCount += 1;
+    }
+  });
+
+  const emptyState = picker.querySelector("[data-chat-search-empty]");
+  if (emptyState) {
+    emptyState.hidden = visibleCount !== 0;
+  }
+});

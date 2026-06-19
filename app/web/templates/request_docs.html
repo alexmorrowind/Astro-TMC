@@ -39,16 +39,22 @@
   <img class="template-preview" src="/static/assets/hiring_driver_documents.jpg" alt="Hiring driver documents template">
   {% endif %}
 
-  <div class="request-submit-row">
+  <div class="chat-toolbar">
+    <div>
+      <h2>Telegram чаты <small>{{ private_chat_count }} private · {{ group_chat_count }} groups/channels</small></h2>
+      <p class="muted">Отправка доступна только в активные личные чаты. Группы и каналы здесь только для просмотра.</p>
+    </div>
+    <label class="chat-search">
+      <span>Поиск</span>
+      <input type="search" data-chat-search placeholder="Имя, ID, сообщение, driver">
+    </label>
     <button class="primary-button" type="submit">Поставить в очередь</button>
-    <span class="muted">Отправка доступна только в активные личные чаты. Группы и каналы здесь только для просмотра.</span>
   </div>
 
-  <div class="chat-picker">
-    <h2>Telegram чаты <small>{{ private_chat_count }} private · {{ group_chat_count }} groups/channels</small></h2>
+  <div class="chat-picker" data-chat-picker>
     {% for chat in chats %}
     {% set can_send = chat.chat_type == 'private' and chat.is_active %}
-    <label class="chat-option telegram-chat-card {% if can_send %}sendable{% else %}readonly-chat{% endif %}" style="--chat-hue: {{ (loop.index0 * 47) % 360 }};">
+    <label class="chat-option telegram-chat-card {% if can_send %}sendable{% else %}readonly-chat{% endif %}" style="--chat-hue: {{ (loop.index0 * 47) % 360 }};" data-chat-search-text="{{ chat.title }} {{ chat.chat_id }} {{ chat.chat_type }} {{ chat.last_message_from or '' }} {{ chat.last_message_text or '' }} {{ chat.driver.full_name if chat.driver else '' }}">
       <input type="checkbox" name="chat_ids" value="{{ chat.chat_id }}" {% if not can_send %}disabled{% endif %}>
       <span class="chat-avatar">{{ (chat.title[:1] if chat.title else 'T')|upper }}</span>
       <span class="chat-content">
@@ -73,6 +79,7 @@
     {% else %}
     <p class="muted">Чатов пока нет. Перезапустите collector, чтобы он синхронизировал Telegram dialogs.</p>
     {% endfor %}
+    <p class="empty-state chat-search-empty" data-chat-search-empty hidden>Ничего не найдено. Попробуйте другой поиск.</p>
   </div>
 </form>
 

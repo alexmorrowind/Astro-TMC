@@ -194,6 +194,45 @@ class GoogleDriveStorage:
                 break
         return items
 
+    def get_file_parents(self, file_id: str) -> list[str]:
+        if not self.enabled:
+            return []
+        metadata = (
+            self.service()
+            .files()
+            .get(fileId=file_id, fields="parents", supportsAllDrives=True)
+            .execute()
+        )
+        return metadata.get("parents", [])
+
+    def move_file_to_folder(self, *, file_id: str, folder_id: str) -> None:
+        if not self.enabled:
+            return
+        previous_parents = ",".join(self.get_file_parents(file_id))
+        self.service().files().update(
+            fileId=file_id,
+            addParents=folder_id,
+            removeParents=previous_parents,
+            fields="id, parents",
+            supportsAllDrives=True,
+        ).execute()
+
+    def move_folder_to_status_container(
+        self,
+        *,
+        folder_id: str,
+        company_folder_id: str,
+        status_name: str,
+    ) -> str | None:
+        if not self.enabled:
+            return None
+        status_folder_id = self._get_or_create_folder(
+            name=status_name,
+            parent_id=company_folder_id,
+        )
+        self.move_file_to_folder(file_id=folder_id, folder_id=status_folder_id)
+        return status_folder_id
+
     def _get_or_create_folder(self, *, name: str, parent_id: str) -> str:
         escaped_name = name.replace("'", "\\'")
         query = (

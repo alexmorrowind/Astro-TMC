@@ -1,6 +1,7 @@
 import tempfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Request, Response, UploadFile, status
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -44,6 +45,7 @@ from app.services.drivers import (
     refresh_driver_status_from_db,
 )
 from app.services.drive import GoogleDriveStorage
+from app.services.drive_status import move_entity_folder_to_status
 from app.services.drive_sync import scan_drive_to_database
 from app.services.groups import list_groups_for_company
 from app.services.incoming import IncomingTelegramMetadata, assign_incoming_document, store_incoming_document
@@ -81,6 +83,10 @@ def clean_optional_multiline(value: str | None) -> str | None:
         return None
     clean_value = value.strip()
     return clean_value or None
+
+
+def drive_error_query(exc: str) -> str:
+    return quote(f"error:{exc}", safe="")
 
 
 def render(request: Request, template: str, context: dict, status_code: int = 200) -> HTMLResponse:
@@ -457,8 +463,19 @@ def terminate_driver(driver_id: int, request: Request, db: Session = Depends(get
     user = require_user(request, db)
     driver = db.scalar(select(Driver).where(Driver.id == driver_id).options(joinedload(Driver.company)))
     driver = ensure_driver_access(user, driver)
+    drive_sync_error = None
+    try:
+        move_entity_folder_to_status(driver, "INACTIVE")
+    except Exception as exc:
+        drive_sync_error = str(exc)
     driver.terminated_at = datetime.utcnow()
+    driver.group_inactive = True
     db.commit()
+    if drive_sync_error:
+        return RedirectResponse(
+            f"/?company_id={driver.company_id}&drive_sync={drive_error_query(drive_sync_error)}",
+            status_code=303,
+        )
     return RedirectResponse(f"/?company_id={driver.company_id}", status_code=303)
 
 
@@ -467,7 +484,12 @@ def restore_driver(driver_id: int, request: Request, db: Session = Depends(get_d
     user = require_user(request, db)
     driver = db.scalar(select(Driver).where(Driver.id == driver_id).options(joinedload(Driver.company)))
     driver = ensure_driver_access(user, driver)
+    try:
+        move_entity_folder_to_status(driver, "ACTIVE")
+    except Exception:
+        pass
     driver.terminated_at = None
+    driver.group_inactive = False
     db.commit()
     return RedirectResponse("/terminated", status_code=303)
 
@@ -522,8 +544,18 @@ def terminate_truck(truck_id: int, request: Request, db: Session = Depends(get_d
     user = require_user(request, db)
     truck = db.scalar(select(Truck).where(Truck.id == truck_id).options(joinedload(Truck.company)))
     truck = ensure_truck_access(user, truck)
+    drive_sync_error = None
+    try:
+        move_entity_folder_to_status(truck, "INACTIVE")
+    except Exception as exc:
+        drive_sync_error = str(exc)
     truck.terminated_at = datetime.utcnow()
     db.commit()
+    if drive_sync_error:
+        return RedirectResponse(
+            f"/trucks?company_id={truck.company_id}&drive_sync={drive_error_query(drive_sync_error)}",
+            status_code=303,
+        )
     return RedirectResponse(f"/trucks?company_id={truck.company_id}", status_code=303)
 
 
@@ -532,6 +564,10 @@ def restore_truck(truck_id: int, request: Request, db: Session = Depends(get_db)
     user = require_user(request, db)
     truck = db.scalar(select(Truck).where(Truck.id == truck_id).options(joinedload(Truck.company)))
     truck = ensure_truck_access(user, truck)
+    try:
+        move_entity_folder_to_status(truck, "ACTIVE")
+    except Exception:
+        pass
     truck.terminated_at = None
     db.commit()
     return RedirectResponse("/terminated", status_code=303)
@@ -603,6 +639,21 @@ def terminate_company(company_id: int, request: Request, db: Session = Depends(g
     require_superadmin(user)
     company = db.get(Company, company_id)
     if company:
+        drivers = list(db.scalars(select(Driver).where(Driver.company_id == company.id, Driver.terminated_at.is_(None))))
+        trucks = list(db.scalars(select(Truck).where(Truck.company_id == company.id, Truck.terminated_at.is_(None))))
+        for driver in drivers:
+            try:
+                move_entity_folder_to_status(driver, "INACTIVE")
+            except Exception:
+                pass
+            driver.terminated_at = datetime.utcnow()
+            driver.group_inactive = True
+        for truck in trucks:
+            try:
+                move_entity_folder_to_status(truck, "INACTIVE")
+            except Exception:
+                pass
+            truck.terminated_at = datetime.utcnow()
         company.terminated_at = datetime.utcnow()
         db.commit()
     return RedirectResponse("/", status_code=303)
@@ -614,6 +665,21 @@ def restore_company(company_id: int, request: Request, db: Session = Depends(get
     require_superadmin(user)
     company = db.get(Company, company_id)
     if company:
+        drivers = list(db.scalars(select(Driver).where(Driver.company_id == company.id, Driver.terminated_at.is_not(None))))
+        trucks = list(db.scalars(select(Truck).where(Truck.company_id == company.id, Truck.terminated_at.is_not(None))))
+        for driver in drivers:
+            try:
+                move_entity_folder_to_status(driver, "ACTIVE")
+            except Exception:
+                pass
+            driver.terminated_at = None
+            driver.group_inactive = False
+        for truck in trucks:
+            try:
+                move_entity_folder_to_status(truck, "ACTIVE")
+            except Exception:
+                pass
+            truck.terminated_at = None
         company.terminated_at = None
         company.is_hidden = False
         db.commit()

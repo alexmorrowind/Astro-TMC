@@ -1,4 +1,4 @@
-# TMC Driver Docs
+# Astro TMS
 
 FastAPI TMS/CRM для логистической компании: сайт менеджера, Google Drive-ссылки и Telegram collector для приема документов из групп/чатов служебного Telegram-аккаунта.
 

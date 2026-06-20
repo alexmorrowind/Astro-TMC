@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ title or "TMC Driver Docs" }}</title>
+    <title>{{ title or "Astro TMS" }}</title>
     <link rel="stylesheet" href="/static/styles.css">
   </head>
   <body>
@@ -11,9 +11,11 @@
       {% if user %}
       <aside class="sidebar" data-sidebar>
         <div class="brand">
-          <span class="brand-mark">T</span>
+          <span class="brand-mark image-mark">
+            <img src="/static/assets/astro-logo.jpg" alt="Astro TMS">
+          </span>
           <div class="brand-copy">
-            <strong>TMC Docs</strong>
+            <strong>Astro TMS</strong>
             <small>{{ user.role.value }}</small>
           </div>
           <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-label="Свернуть меню" title="Свернуть меню">

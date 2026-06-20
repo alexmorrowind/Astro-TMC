@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "TMC Driver Docs"
+    app_name: str = "Astro TMS"
     app_secret_key: str = "change-me-in-production"
     database_url: str = "sqlite:///./tmc.db"
 

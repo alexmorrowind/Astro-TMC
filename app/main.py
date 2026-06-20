@@ -53,7 +53,7 @@ from app.services.outbox import create_outbox_messages
 from app.services.trucks import list_trucks_with_documents
 
 
-app = FastAPI(title="TMC Driver Docs")
+app = FastAPI(title="Astro TMS")
 templates = Jinja2Templates(directory="app/web/templates")
 app.mount("/static", StaticFiles(directory="app/web/static"), name="static")
 

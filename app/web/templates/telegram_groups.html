@@ -86,7 +86,7 @@
         <td>{{ group.chat_id }}</td>
         <td>{{ group.chat_type }}</td>
         <td>{{ group.message_count or 0 }}</td>
-        <td>{{ group.last_seen_at.strftime('%Y-%m-%d %H:%M') if group.last_seen_at else '-' }}</td>
+        <td>{{ format_datetime(group.last_seen_at) }}</td>
         <td>
           {% if group.is_active %}
           <span class="status-pill active">Active</span>
@@ -94,7 +94,7 @@
           <span class="status-pill pending">Disabled</span>
           {% endif %}
         </td>
-        <td>{{ group.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ format_datetime(group.updated_at) }}</td>
         {% if user.role.value == 'superadmin' %}
         <td>
           <form class="compact-row-form" method="post" action="/telegram/groups/{{ group.id }}/assign-driver">

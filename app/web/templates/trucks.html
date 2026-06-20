@@ -166,7 +166,8 @@
                 {% set document = doc.document %}
                 <div class="doc-cell {{ doc.state.css }}">
                   <strong>{{ doc.name }}</strong>
-                  <small>{{ doc.state.label }} · {{ doc.state.detail }}</small>
+                  <small>Expiration date: {{ doc.state.detail }}</small>
+                  <small>{{ doc.state.label }}</small>
                   {% if document %}
                   <span class="doc-links">
                     <a href="/truck-documents/{{ document.id }}/view" target="_blank">Open</a>

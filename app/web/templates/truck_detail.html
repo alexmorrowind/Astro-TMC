@@ -72,8 +72,8 @@
         <div class="file-tile">
           <span class="file-glyph">DOC</span>
           <strong>{{ document.display_name }}</strong>
-          <small>{{ document.original_filename or document.uploaded_at.strftime('%Y-%m-%d %H:%M') }}</small>
-          <small>{% if document.expiration_date %}Exp {{ document.expiration_date }}{% else %}No expiration date{% endif %}</small>
+          <small>{{ document.original_filename or format_datetime(document.uploaded_at) }}</small>
+          <small>Expiration date: {% if document.expiration_date %}{{ format_date(document.expiration_date) }}{% else %}Not set{% endif %}</small>
           <div class="file-actions">
             <a href="/truck-documents/{{ document.id }}/view" target="_blank">Открыть</a>
             <a href="/truck-documents/{{ document.id }}/download">Скачать</a>
@@ -81,7 +81,7 @@
           <form class="metadata-form" method="post" action="/truck-documents/{{ document.id }}/metadata">
             <label>
               Expiration
-              <input type="date" name="expiration_date" value="{{ document.expiration_date or '' }}">
+              <input name="expiration_date" value="{{ format_date(document.expiration_date, '') }}" placeholder="MM/DD/YYYY" inputmode="numeric">
             </label>
             <button class="ghost-button compact" type="submit">Save</button>
           </form>

@@ -68,7 +68,31 @@ def on_startup() -> None:
 def parse_date(value: str | None) -> date | None:
     if not value:
         return None
-    return date.fromisoformat(value)
+    clean_value = value.strip()
+    if not clean_value:
+        return None
+    for date_format in ("%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y"):
+        try:
+            return datetime.strptime(clean_value, date_format).date()
+        except ValueError:
+            pass
+    raise HTTPException(status_code=400, detail="Date must be MM/DD/YYYY")
+
+
+def format_date(value: date | datetime | None, empty: str = "-") -> str:
+    if not value:
+        return empty
+    return value.strftime("%m/%d/%Y")
+
+
+def format_datetime(value: datetime | None, empty: str = "-") -> str:
+    if not value:
+        return empty
+    return value.strftime("%m/%d/%Y %H:%M")
+
+
+templates.env.globals["format_date"] = format_date
+templates.env.globals["format_datetime"] = format_datetime
 
 
 def clean_optional_text(value: str | None) -> str | None:
@@ -196,7 +220,7 @@ def document_state(document: Document | TruckDocument | None) -> dict:
     if not document.expiration_date:
         return {
             "label": "No exp date",
-            "detail": "Set date",
+            "detail": "Not set",
             "css": "no-exp",
             "expiration": None,
         }
@@ -212,7 +236,7 @@ def document_state(document: Document | TruckDocument | None) -> dict:
         label = "Valid"
     return {
         "label": label,
-        "detail": document.expiration_date.isoformat(),
+        "detail": format_date(document.expiration_date),
         "css": css,
         "expiration": document.expiration_date,
     }
@@ -275,6 +299,9 @@ def dashboard(
             if needle in driver.full_name.lower()
             or needle in (driver.phone or "").lower()
             or needle in (driver.license_number or "").lower()
+            or needle in (driver.email or "").lower()
+            or needle in (driver.address or "").lower()
+            or needle in driver.company.name.lower()
         ]
         if user.role == UserRole.SUPERADMIN and effective_company_id is None:
             stats_drivers = [
@@ -283,6 +310,9 @@ def dashboard(
                 if needle in driver.full_name.lower()
                 or needle in (driver.phone or "").lower()
                 or needle in (driver.license_number or "").lower()
+                or needle in (driver.email or "").lower()
+                or needle in (driver.address or "").lower()
+                or needle in driver.company.name.lower()
             ]
 
     stats = {
@@ -910,13 +940,16 @@ def request_docs_page(request: Request, db: Session = Depends(get_db)):
 @app.post("/telegram/request-docs")
 async def queue_request_docs(
     request: Request,
-    chat_ids: list[int] = Form(...),
+    chat_ids: list[int] | None = Form(None),
     text: str = Form(...),
     use_default_photo: bool = Form(False),
     photo: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
     user = require_user(request, db)
+    if not chat_ids:
+        return RedirectResponse("/telegram/request-docs?select_chat=1", status_code=303)
+
     effective_company_id = user.company_id if user.role == UserRole.MANAGER else None
     chats_stmt = select(TelegramGroup).where(
         TelegramGroup.chat_id.in_(chat_ids),
@@ -927,7 +960,7 @@ async def queue_request_docs(
         chats_stmt = chats_stmt.where(TelegramGroup.company_id == effective_company_id)
     chats = list(db.scalars(chats_stmt))
     if not chats:
-        raise HTTPException(status_code=400, detail="No active private chats selected")
+        return RedirectResponse("/telegram/request-docs?select_chat=1", status_code=303)
 
     photo_path = None
     photo_filename = None

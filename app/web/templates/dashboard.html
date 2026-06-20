@@ -118,7 +118,6 @@
         <th>Phone number</th>
         <th>E-mail</th>
         <th>Company</th>
-        <th>Group inactive</th>
         <th>Status</th>
         <th>Missing</th>
         <th>Actions</th>
@@ -129,12 +128,11 @@
       {% set driver = row.item %}
       <tr>
         <td><a class="driver-link" href="/drivers/{{ driver.id }}">{{ driver.full_name }}</a></td>
-        <td>{{ driver.birth_date or '-' }}</td>
+        <td>{{ format_date(driver.birth_date) }}</td>
         <td>{{ driver.address or '-' }}</td>
         <td>{{ driver.phone or '-' }}</td>
         <td>{{ driver.email or '-' }}</td>
         <td>{{ driver.company.name }}</td>
-        <td>{{ 'Yes' if driver.group_inactive else 'No' }}</td>
         <td><span class="status-pill {{ driver.status.value|lower|replace('_', '-') }}">{{ driver.status.value }}</span></td>
         <td>{{ row.missing_documents|length }}</td>
         <td>
@@ -147,7 +145,7 @@
         </td>
       </tr>
       <tr id="driver-details-{{ driver.id }}" class="details-row" hidden>
-        <td colspan="10">
+        <td colspan="9">
           <div class="details-panel">
             <div>
               <h2>Missing documents</h2>
@@ -168,7 +166,8 @@
                 {% set document = doc.document %}
                 <div class="doc-cell {{ doc.state.css }}">
                   <strong>{{ doc.name }}</strong>
-                  <small>{{ doc.state.label }} · {{ doc.state.detail }}</small>
+                  <small>Expiration date: {{ doc.state.detail }}</small>
+                  <small>{{ doc.state.label }}</small>
                   {% if document %}
                   <span class="doc-links">
                     <a href="/documents/{{ document.id }}/view" target="_blank">Open</a>
@@ -184,7 +183,7 @@
       </tr>
       {% else %}
       <tr>
-        <td colspan="10" class="empty-state">
+        <td colspan="9" class="empty-state">
           {% if selected_company_id %}
           У этой компании пока нет активных водителей.
           {% else %}

@@ -69,6 +69,13 @@ document.addEventListener("input", (event) => {
   }
 });
 
+document.addEventListener("keydown", (event) => {
+  const search = event.target.closest("[data-chat-search]");
+  if (search && event.key === "Enter") {
+    event.preventDefault();
+  }
+});
+
 document.addEventListener("DOMContentLoaded", () => {
   const sidebar = document.querySelector("[data-sidebar]");
   const sidebarToggle = document.querySelector("[data-sidebar-toggle]");

@@ -38,7 +38,7 @@
         <td>{{ item.sender_username or item.sender_name or item.sender_id or '-' }}</td>
         <td>{{ item.company.name if item.company else '-' }}</td>
         <td><span class="status-pill {{ 'active' if item.status.value == 'assigned' else 'pending' }}">{{ item.status.value }}</span></td>
-        <td>{{ item.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ format_datetime(item.created_at) }}</td>
         <td>
           {% if item.status.value == 'new' %}
           <form class="inline-assign-form" action="/telegram/incoming/{{ item.id }}/assign" method="post">
@@ -54,7 +54,7 @@
               {% endfor %}
               <option value="Other">Other</option>
             </select>
-            <input name="expiration_date" type="date" aria-label="Expiration date">
+            <input name="expiration_date" placeholder="MM/DD/YYYY" inputmode="numeric" aria-label="Expiration date">
             <button class="primary-button compact" type="submit">Прикрепить</button>
           </form>
           {% else %}

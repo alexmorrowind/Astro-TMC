@@ -14,6 +14,11 @@
   Сообщения поставлены в очередь. Collector отправит их в ближайшие секунды.
 </section>
 {% endif %}
+{% if request.query_params.get('select_chat') %}
+<section class="info-panel notice-panel">
+  Выберите хотя бы один активный личный чат перед отправкой.
+</section>
+{% endif %}
 
 <form class="info-panel request-form" method="post" action="/telegram/request-docs" enctype="multipart/form-data">
   <label>
@@ -64,7 +69,7 @@
         </span>
         <span class="chat-meta">
           {{ chat.chat_id }} · {{ 'Active' if chat.is_active else 'Disabled' }}
-          {% if chat.last_seen_at %} · {{ chat.last_seen_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+          {% if chat.last_seen_at %} · {{ format_datetime(chat.last_seen_at) }}{% endif %}
         </span>
         <span class="chat-preview">
           {% if chat.last_message_from %}<b>{{ chat.last_message_from }}:</b> {% endif %}
@@ -106,8 +111,8 @@
           {% endif %}
         </td>
         <td><span class="status-pill {{ message.status.value }}">{{ message.status.value }}</span></td>
-        <td>{{ message.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-        <td>{{ message.sent_at.strftime('%Y-%m-%d %H:%M') if message.sent_at else '-' }}</td>
+        <td>{{ format_datetime(message.created_at) }}</td>
+        <td>{{ format_datetime(message.sent_at) }}</td>
         <td>{{ message.error or '-' }}</td>
       </tr>
       {% else %}

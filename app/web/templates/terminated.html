@@ -23,7 +23,7 @@
       {% for company in companies %}
       <tr>
         <td>{{ company.name }}</td>
-        <td>{{ company.terminated_at.strftime('%Y-%m-%d %H:%M') if company.terminated_at else '-' }}</td>
+        <td>{{ format_datetime(company.terminated_at) }}</td>
         <td>
           <form method="post" action="/companies/{{ company.id }}/restore">
             <button class="ghost-button compact" type="submit">Restore</button>
@@ -53,7 +53,7 @@
       <tr>
         <td>{{ driver.full_name }}</td>
         <td>{{ driver.company.name }}</td>
-        <td>{{ driver.terminated_at.strftime('%Y-%m-%d %H:%M') if driver.terminated_at else '-' }}</td>
+        <td>{{ format_datetime(driver.terminated_at) }}</td>
         <td>
           <form method="post" action="/drivers/{{ driver.id }}/restore">
             <button class="ghost-button compact" type="submit">Restore</button>
@@ -82,7 +82,7 @@
       <tr>
         <td>{{ truck.unit_number }}</td>
         <td>{{ truck.company.name }}</td>
-        <td>{{ truck.terminated_at.strftime('%Y-%m-%d %H:%M') if truck.terminated_at else '-' }}</td>
+        <td>{{ format_datetime(truck.terminated_at) }}</td>
         <td>
           <form method="post" action="/trucks/{{ truck.id }}/restore">
             <button class="ghost-button compact" type="submit">Restore</button>

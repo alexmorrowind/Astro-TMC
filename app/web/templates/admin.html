@@ -119,7 +119,7 @@
         <td>{{ item.username }}</td>
         <td>{{ item.role.value }}</td>
         <td>{{ item.company.name if item.company else '-' }}</td>
-        <td>{{ item.created_at.strftime('%Y-%m-%d') }}</td>
+        <td>{{ format_date(item.created_at) }}</td>
       </tr>
       {% endfor %}
     </tbody>

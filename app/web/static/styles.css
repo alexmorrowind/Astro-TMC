@@ -7,6 +7,8 @@
   --line: #dde3ea;
   --accent: #1f7a5b;
   --accent-strong: #146345;
+  --astro: #111820;
+  --astro-soft: #2b3542;
   --blue: #2563eb;
   --warn: #bf7a08;
   --danger: #b42318;
@@ -165,7 +167,7 @@ select {
 
 .nav a.active .nav-icon,
 .nav a:hover .nav-icon {
-  background: var(--accent);
+  background: #111820;
   color: #fff;
 }
 
@@ -283,7 +285,7 @@ h2 {
 
 .eyebrow {
   display: block;
-  color: var(--accent-strong);
+  color: #1f6a50;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -349,14 +351,14 @@ select {
   border-radius: 6px;
   min-height: 40px;
   padding: 9px 14px;
-  background: var(--accent);
+  background: var(--astro);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
 }
 
 .primary-button:hover {
-  background: var(--accent-strong);
+  background: var(--astro-soft);
 }
 
 .primary-button:disabled {
@@ -1051,11 +1053,66 @@ textarea {
 }
 
 .admin-grid {
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  align-items: start;
 }
 
 .info-panel {
   padding: 18px;
+}
+
+.form-panel {
+  position: relative;
+  padding: 18px;
+  align-content: start;
+  border-top: 3px solid #111820;
+  box-shadow: 0 8px 24px rgba(22, 31, 43, 0.04);
+}
+
+.panel-title {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.panel-title h2 {
+  margin: 0 0 3px;
+}
+
+.panel-title p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.panel-icon {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #111820;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.form-panel label {
+  gap: 5px;
+}
+
+.form-panel .primary-button {
+  min-width: 132px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2px;
 }
 
 .facts {
@@ -1167,6 +1224,12 @@ textarea {
   color: var(--accent-strong);
   font-size: 12px;
   font-weight: 900;
+}
+
+@media (max-width: 1280px) {
+  .admin-grid {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
 }
 
 .telegram-help {

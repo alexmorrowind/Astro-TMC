@@ -10,16 +10,30 @@
 
 <section class="admin-grid">
   <form class="info-panel form-panel" action="/admin/companies" method="post">
-    <h2>Новая компания</h2>
+    <div class="panel-title">
+      <span class="panel-icon">Co</span>
+      <div>
+        <h2>Новая компания</h2>
+        <p>Добавьте carrier/company в CRM.</p>
+      </div>
+    </div>
     <label>
       Название
       <input name="name" required>
     </label>
-    <button class="primary-button compact" type="submit">Добавить</button>
+    <div class="form-actions">
+      <button class="primary-button compact" type="submit">Добавить</button>
+    </div>
   </form>
 
   <form class="info-panel form-panel" action="/admin/users" method="post">
-    <h2>Новый пользователь</h2>
+    <div class="panel-title">
+      <span class="panel-icon">Us</span>
+      <div>
+        <h2>Новый пользователь</h2>
+        <p>Создайте менеджера или суперадмина.</p>
+      </div>
+    </div>
     <label>
       Логин
       <input name="username" required>
@@ -45,11 +59,19 @@
         {% endfor %}
       </select>
     </label>
-    <button class="primary-button compact" type="submit">Создать</button>
+    <div class="form-actions">
+      <button class="primary-button compact" type="submit">Создать</button>
+    </div>
   </form>
 
   <form class="info-panel form-panel" action="/admin/required-documents" method="post">
-    <h2>Обязательный документ</h2>
+    <div class="panel-title">
+      <span class="panel-icon">Dc</span>
+      <div>
+        <h2>Обязательный документ</h2>
+        <p>Добавьте новый checklist item.</p>
+      </div>
+    </div>
     <label>
       Название
       <input name="name" required placeholder="Insurance, W9, Permit">
@@ -75,7 +97,9 @@
       Порядок
       <input name="sort_order" type="number" value="100">
     </label>
-    <button class="primary-button compact" type="submit">Добавить</button>
+    <div class="form-actions">
+      <button class="primary-button compact" type="submit">Добавить</button>
+    </div>
   </form>
 </section>
 

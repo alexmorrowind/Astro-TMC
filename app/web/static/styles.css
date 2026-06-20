@@ -376,6 +376,12 @@ select {
   margin-bottom: 0;
 }
 
+.error-panel {
+  color: var(--danger);
+  border-color: #f5b5ae;
+  background: #fff7f6;
+}
+
 .user-chip {
   display: inline-flex;
   align-items: center;
@@ -1161,6 +1167,44 @@ textarea {
   margin-top: 2px;
 }
 
+.upload-company-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+
+.company-select-form {
+  display: grid;
+}
+
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.upload-panel {
+  gap: 13px;
+}
+
+.upload-hint {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.upload-hint code {
+  color: var(--ink);
+  font-weight: 700;
+}
+
 .facts {
   display: grid;
   gap: 12px;
@@ -1344,6 +1388,8 @@ code {
   .stats-grid,
   .detail-grid,
   .admin-grid,
+  .upload-grid,
+  .upload-company-panel,
   .chat-toolbar,
   .details-panel,
   .command-grid,

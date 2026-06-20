@@ -45,6 +45,10 @@
             <span class="nav-icon">Rq</span>
             <span class="nav-label">Запрос доков</span>
           </a>
+          <a href="/uploads" class="{% if request.url.path == '/uploads' %}active{% endif %}" title="Загрузить доки">
+            <span class="nav-icon">Up</span>
+            <span class="nav-label">Загрузить доки</span>
+          </a>
           <a href="/telegram/incoming" class="{% if request.url.path == '/telegram/incoming' %}active{% endif %}" title="Входящие доки">
             <span class="nav-icon">In</span>
             <span class="nav-label">Входящие доки</span>

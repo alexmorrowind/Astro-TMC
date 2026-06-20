@@ -49,8 +49,14 @@ from app.services.drive_status import move_entity_folder_to_status
 from app.services.drive_sync import scan_drive_to_database
 from app.services.groups import list_groups_for_company, touch_or_create_group_activity, upsert_discovered_telegram_group
 from app.services.incoming import IncomingTelegramMetadata, assign_incoming_document, store_incoming_document
+from app.services.manual_uploads import (
+    guess_uploaded_document_name,
+    store_uploaded_file,
+    upload_driver_document_from_site,
+    upload_truck_document_from_site,
+)
 from app.services.outbox import create_outbox_messages
-from app.services.trucks import list_trucks_with_documents
+from app.services.trucks import list_trucks_with_documents, upsert_truck
 
 
 app = FastAPI(title="Astro TMS")
@@ -458,6 +464,204 @@ def trucks_page(
             "statuses": list(DriverStatus),
             "drive_sync_result": request.query_params.get("drive_sync"),
         },
+    )
+
+
+@app.get("/uploads", response_class=HTMLResponse)
+def uploads_page(request: Request, company_id: int | None = None, db: Session = Depends(get_db)):
+    user = require_user(request, db)
+    companies_stmt = select(Company).where(
+        Company.is_hidden == False,
+        Company.terminated_at.is_(None),
+    ).order_by(Company.name)
+    if user.role == UserRole.MANAGER:
+        companies_stmt = companies_stmt.where(Company.id == user.company_id)
+    companies = list(db.scalars(companies_stmt))
+    effective_company_id = user.company_id if user.role == UserRole.MANAGER else company_id
+    selected_company = db.get(Company, effective_company_id) if effective_company_id else None
+    if selected_company and (selected_company.is_hidden or selected_company.terminated_at):
+        selected_company = None
+        effective_company_id = None
+    drivers = visible_active_drivers(db, company_id=effective_company_id) if effective_company_id else []
+    trucks = visible_active_trucks(db, company_id=effective_company_id) if effective_company_id else []
+    driver_required_documents = list_required_document_names(
+        db,
+        company_id=effective_company_id,
+        entity_type=EntityType.DRIVER,
+    )
+    truck_required_documents = list_required_document_names(
+        db,
+        company_id=effective_company_id,
+        entity_type=EntityType.TRUCK,
+    )
+    return render(
+        request,
+        "uploads.html",
+        {
+            "user": user,
+            "companies": companies,
+            "selected_company_id": effective_company_id,
+            "selected_company": selected_company,
+            "drivers": drivers,
+            "trucks": trucks,
+            "driver_required_documents": driver_required_documents,
+            "truck_required_documents": truck_required_documents,
+            "upload_result": request.query_params.get("uploaded"),
+            "upload_error": request.query_params.get("error"),
+        },
+    )
+
+
+@app.post("/uploads/driver")
+async def upload_driver_documents(
+    request: Request,
+    company_id: int = Form(...),
+    driver_id: int | None = Form(None),
+    new_driver_name: str | None = Form(None),
+    fallback_document_name: str = Form("Other"),
+    expiration_date: str | None = Form(None),
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    if user.role == UserRole.MANAGER and company_id != user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    company = db.get(Company, company_id)
+    if not company or company.is_hidden or company.terminated_at:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    driver = None
+    if driver_id and driver_id > 0:
+        driver = db.scalar(
+            select(Driver)
+            .where(Driver.id == driver_id, Driver.company_id == company.id)
+            .options(joinedload(Driver.company), joinedload(Driver.documents))
+        )
+    if driver is None:
+        clean_driver_name = clean_optional_text(new_driver_name)
+        if not clean_driver_name:
+            return RedirectResponse(f"/uploads?company_id={company.id}&error=driver_required", status_code=303)
+        driver = db.scalar(
+            select(Driver)
+            .where(Driver.company_id == company.id, Driver.full_name == clean_driver_name)
+            .options(joinedload(Driver.company), joinedload(Driver.documents))
+        )
+        if driver is None:
+            driver = Driver(company_id=company.id, full_name=clean_driver_name)
+            db.add(driver)
+            db.flush()
+            driver.company = company
+    driver = ensure_driver_access(user, driver)
+
+    required_names = list_required_document_names(db, company_id=company.id, entity_type=EntityType.DRIVER)
+    parsed_expiration_date = parse_date(expiration_date)
+    uploaded_count = 0
+    for file in files:
+        if not file.filename:
+            continue
+        suffix = Path(file.filename).suffix or ".bin"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+            while chunk := await file.read(1024 * 1024):
+                temp_file.write(chunk)
+        try:
+            stored = store_uploaded_file(
+                source_path=temp_path,
+                original_filename=file.filename,
+                mime_type=file.content_type,
+            )
+            document_name = guess_uploaded_document_name(
+                file_name=file.filename,
+                required_names=required_names,
+                fallback_name=fallback_document_name,
+            )
+            upload_driver_document_from_site(
+                db,
+                driver=driver,
+                stored=stored,
+                document_name=document_name,
+                expiration_date=parsed_expiration_date,
+            )
+            uploaded_count += 1
+        finally:
+            temp_path.unlink(missing_ok=True)
+    refresh_driver_status_from_db(db, driver)
+    db.commit()
+    return RedirectResponse(
+        f"/uploads?company_id={company.id}&uploaded=driver:{uploaded_count}",
+        status_code=303,
+    )
+
+
+@app.post("/uploads/truck")
+async def upload_truck_documents(
+    request: Request,
+    company_id: int = Form(...),
+    truck_id: int | None = Form(None),
+    new_unit_number: str | None = Form(None),
+    fallback_document_name: str = Form("Other"),
+    expiration_date: str | None = Form(None),
+    files: list[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+):
+    user = require_user(request, db)
+    if user.role == UserRole.MANAGER and company_id != user.company_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    company = db.get(Company, company_id)
+    if not company or company.is_hidden or company.terminated_at:
+        raise HTTPException(status_code=404, detail="Company not found")
+
+    truck = None
+    if truck_id and truck_id > 0:
+        truck = db.scalar(
+            select(Truck)
+            .where(Truck.id == truck_id, Truck.company_id == company.id)
+            .options(joinedload(Truck.company), joinedload(Truck.documents))
+        )
+    if truck is None:
+        clean_unit_number = clean_optional_text(new_unit_number)
+        if not clean_unit_number:
+            return RedirectResponse(f"/uploads?company_id={company.id}&error=truck_required", status_code=303)
+        truck = upsert_truck(db, company_name=company.name, unit_number=clean_unit_number)
+        truck.company = company
+    truck = ensure_truck_access(user, truck)
+
+    required_names = list_required_document_names(db, company_id=company.id, entity_type=EntityType.TRUCK)
+    parsed_expiration_date = parse_date(expiration_date)
+    uploaded_count = 0
+    for file in files:
+        if not file.filename:
+            continue
+        suffix = Path(file.filename).suffix or ".bin"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_file:
+            temp_path = Path(temp_file.name)
+            while chunk := await file.read(1024 * 1024):
+                temp_file.write(chunk)
+        try:
+            stored = store_uploaded_file(
+                source_path=temp_path,
+                original_filename=file.filename,
+                mime_type=file.content_type,
+            )
+            document_name = guess_uploaded_document_name(
+                file_name=file.filename,
+                required_names=required_names,
+                fallback_name=fallback_document_name,
+            )
+            upload_truck_document_from_site(
+                db,
+                truck=truck,
+                stored=stored,
+                document_name=document_name,
+                expiration_date=parsed_expiration_date,
+            )
+            uploaded_count += 1
+        finally:
+            temp_path.unlink(missing_ok=True)
+    db.commit()
+    return RedirectResponse(
+        f"/uploads?company_id={company.id}&uploaded=truck:{uploaded_count}",
+        status_code=303,
     )
 
 
@@ -964,7 +1168,13 @@ def request_docs_page(request: Request, db: Session = Depends(get_db)):
     if effective_company_id:
         chats_stmt = chats_stmt.where(TelegramGroup.company_id == effective_company_id)
     chats = list(db.scalars(chats_stmt))
-    chats.sort(key=lambda chat: (0 if chat.chat_type == "private" else 1, not chat.is_active, chat.title.lower()))
+    chats.sort(
+        key=lambda chat: (
+            0 if chat.chat_type == "private" else 1,
+            not chat.is_active,
+            (chat.title or str(chat.chat_id)).lower(),
+        )
+    )
     outbox_stmt = (
         select(TelegramOutboxMessage)
         .outerjoin(TelegramGroup, TelegramGroup.chat_id == TelegramOutboxMessage.chat_id)

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header class="page-header">
+  <div>
+    <span class="eyebrow">Document upload</span>
+    <h1>Загрузить документы</h1>
+    <p class="muted">Выберите компанию, водителя или трак, загрузите файлы. Сайт сам попробует определить тип документа и отправит файл в Google Drive.</p>
+  </div>
+</header>
+
+{% if upload_result %}
+<section class="info-panel notice-panel">
+  Загружено: {{ upload_result }}.
+</section>
+{% endif %}
+{% if upload_error %}
+<section class="info-panel notice-panel error-panel">
+  Ошибка: выберите существующую запись или заполните новое имя.
+</section>
+{% endif %}
+
+<section class="info-panel upload-company-panel">
+  <form method="get" action="/uploads" class="company-select-form">
+    <label>
+      Компания
+      <select name="company_id" onchange="this.form.submit()">
+        <option value="">Выберите компанию</option>
+        {% for company in companies %}
+        <option value="{{ company.id }}" {% if selected_company_id == company.id %}selected{% endif %}>{{ company.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+  </form>
+  {% if selected_company %}
+  <p class="muted">Сейчас выбрана: <strong>{{ selected_company.name }}</strong></p>
+  {% else %}
+  <p class="muted">Сначала выберите компанию. Потом можно будет загрузить документы водителя или трака.</p>
+  {% endif %}
+</section>
+
+{% if selected_company %}
+<section class="upload-grid">
+  <form class="info-panel form-panel upload-panel" method="post" action="/uploads/driver" enctype="multipart/form-data">
+    <div class="panel-title">
+      <span class="panel-icon">Dr</span>
+      <div>
+        <h2>Driver documents</h2>
+        <p>CDL, Medical Card, SSN, Work Authorization, Emergency contact, DrugTest и другие документы водителя.</p>
+      </div>
+    </div>
+    <input type="hidden" name="company_id" value="{{ selected_company.id }}">
+    <label>
+      Existing driver
+      <select name="driver_id">
+        <option value="0">Создать нового или выбрать ниже</option>
+        {% for driver in drivers %}
+        <option value="{{ driver.id }}">{{ driver.full_name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      New driver name
+      <input name="new_driver_name" placeholder="Например: John Smith">
+    </label>
+    <label>
+      Fallback document type
+      <select name="fallback_document_name">
+        {% for document_name in driver_required_documents %}
+        <option value="{{ document_name }}">{{ document_name }}</option>
+        {% endfor %}
+        <option value="Other">Other</option>
+      </select>
+    </label>
+    <label>
+      Expiration date for uploaded files
+      <input name="expiration_date" placeholder="MM/DD/YYYY" inputmode="numeric">
+    </label>
+    <label>
+      Files
+      <input name="files" type="file" multiple required accept="image/*,.pdf,.doc,.docx">
+    </label>
+    <div class="upload-hint">
+      Автоопределение смотрит на имя файла: <code>cdl</code>, <code>medcard</code>, <code>ssn</code>, <code>drug</code>, <code>contract</code>.
+    </div>
+    <button class="primary-button" type="submit">Загрузить driver docs</button>
+  </form>
+
+  <form class="info-panel form-panel upload-panel" method="post" action="/uploads/truck" enctype="multipart/form-data">
+    <div class="panel-title">
+      <span class="panel-icon">Tr</span>
+      <div>
+        <h2>Truck documents</h2>
+        <p>Registration, Lease Agreement, Annual Inspection, OR/NY/NM/KYU permits.</p>
+      </div>
+    </div>
+    <input type="hidden" name="company_id" value="{{ selected_company.id }}">
+    <label>
+      Existing truck
+      <select name="truck_id">
+        <option value="0">Создать новый или выбрать ниже</option>
+        {% for truck in trucks %}
+        <option value="{{ truck.id }}">Unit {{ truck.unit_number }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      New unit number
+      <input name="new_unit_number" placeholder="Например: 26968">
+    </label>
+    <label>
+      Fallback document type
+      <select name="fallback_document_name">
+        {% for document_name in truck_required_documents %}
+        <option value="{{ document_name }}">{{ document_name }}</option>
+        {% endfor %}
+        <option value="Other">Other</option>
+      </select>
+    </label>
+    <label>
+      Expiration date for uploaded files
+      <input name="expiration_date" placeholder="MM/DD/YYYY" inputmode="numeric">
+    </label>
+    <label>
+      Files
+      <input name="files" type="file" multiple required accept="image/*,.pdf,.doc,.docx">
+    </label>
+    <div class="upload-hint">
+      Автоопределение смотрит на имя файла: <code>registration</code>, <code>lease</code>, <code>inspection</code>, <code>or permit</code>, <code>kyu</code>.
+    </div>
+    <button class="primary-button" type="submit">Загрузить truck docs</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

@@ -81,13 +81,43 @@ class GoogleDriveStorage:
         document_type: str,
         source_path: str,
     ) -> UploadedDriveFile:
+        return self._upload_entity_document(
+            company_name=company_name,
+            entity_name=driver_name,
+            document_type=document_type,
+            source_path=source_path,
+        )
+
+    def upload_truck_document(
+        self,
+        *,
+        company_name: str,
+        truck_name: str,
+        document_type: str,
+        source_path: str,
+    ) -> UploadedDriveFile:
+        return self._upload_entity_document(
+            company_name=company_name,
+            entity_name=truck_name,
+            document_type=document_type,
+            source_path=source_path,
+        )
+
+    def _upload_entity_document(
+        self,
+        *,
+        company_name: str,
+        entity_name: str,
+        document_type: str,
+        source_path: str,
+    ) -> UploadedDriveFile:
         extension = Path(source_path).suffix or mimetypes.guess_extension(
             mimetypes.guess_type(source_path)[0] or ""
         ) or ".bin"
-        drive_filename = f"{safe_drive_name(driver_name)}_{safe_drive_name(document_type)}{extension}"
+        drive_filename = f"{safe_drive_name(entity_name)}_{safe_drive_name(document_type)}{extension}"
 
         if not self.enabled:
-            mock_id = f"local-{safe_drive_name(company_name)}-{safe_drive_name(driver_name)}-{safe_drive_name(document_type)}"
+            mock_id = f"local-{safe_drive_name(company_name)}-{safe_drive_name(entity_name)}-{safe_drive_name(document_type)}"
             return UploadedDriveFile(
                 file_id=mock_id,
                 web_view_link=f"file://{os.path.abspath(source_path)}",
@@ -99,15 +129,15 @@ class GoogleDriveStorage:
             name=company_name,
             parent_id=self.settings.google_drive_root_folder_id,
         )
-        driver_folder_id = self._get_or_create_folder(
-            name=driver_name,
+        entity_folder_id = self._get_or_create_folder(
+            name=entity_name,
             parent_id=company_folder_id,
         )
 
         media = MediaFileUpload(source_path, resumable=False)
         file_metadata = {
             "name": drive_filename,
-            "parents": [driver_folder_id],
+            "parents": [entity_folder_id],
         }
         created = (
             self.service()
@@ -131,8 +161,8 @@ class GoogleDriveStorage:
         return UploadedDriveFile(
             file_id=created["id"],
             web_view_link=created["webViewLink"],
-            folder_id=driver_folder_id,
-            folder_url=f"https://drive.google.com/drive/folders/{driver_folder_id}",
+            folder_id=entity_folder_id,
+            folder_url=f"https://drive.google.com/drive/folders/{entity_folder_id}",
         )
 
     def download_file(self, *, file_id: str, destination_path: str | Path) -> tuple[str | None, str | None]:

@@ -1,4 +1,16 @@
 document.addEventListener("click", (event) => {
+  const sidebarToggle = event.target.closest("[data-sidebar-toggle]");
+  if (sidebarToggle) {
+    const sidebar = document.querySelector("[data-sidebar]");
+    if (sidebar) {
+      const isCollapsed = sidebar.classList.toggle("is-collapsed");
+      localStorage.setItem("tmcSidebarCollapsed", isCollapsed ? "1" : "0");
+      sidebarToggle.setAttribute("aria-label", isCollapsed ? "Развернуть меню" : "Свернуть меню");
+      sidebarToggle.setAttribute("title", isCollapsed ? "Развернуть меню" : "Свернуть меню");
+    }
+    return;
+  }
+
   const languageButton = event.target.closest(".language-button");
   if (languageButton) {
     const target = document.getElementById(languageButton.dataset.templateTarget);
@@ -54,5 +66,20 @@ document.addEventListener("input", (event) => {
   const emptyState = picker.querySelector("[data-chat-search-empty]");
   if (emptyState) {
     emptyState.hidden = visibleCount !== 0;
+  }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const sidebar = document.querySelector("[data-sidebar]");
+  const sidebarToggle = document.querySelector("[data-sidebar-toggle]");
+  if (!sidebar) {
+    return;
+  }
+
+  const isCollapsed = localStorage.getItem("tmcSidebarCollapsed") === "1";
+  sidebar.classList.toggle("is-collapsed", isCollapsed);
+  if (sidebarToggle) {
+    sidebarToggle.setAttribute("aria-label", isCollapsed ? "Развернуть меню" : "Свернуть меню");
+    sidebarToggle.setAttribute("title", isCollapsed ? "Развернуть меню" : "Свернуть меню");
   }
 });

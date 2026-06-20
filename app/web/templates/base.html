@@ -9,30 +9,60 @@
   <body>
     <div class="app-shell">
       {% if user %}
-      <aside class="sidebar">
+      <aside class="sidebar" data-sidebar>
         <div class="brand">
           <span class="brand-mark">T</span>
-          <div>
+          <div class="brand-copy">
             <strong>TMC Docs</strong>
             <small>{{ user.role.value }}</small>
           </div>
+          <button class="sidebar-toggle" type="button" data-sidebar-toggle aria-label="Свернуть меню" title="Свернуть меню">
+            <span aria-hidden="true">‹</span>
+          </button>
         </div>
         <nav class="nav">
-          <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Таблица</a>
-          <a href="/trucks" class="{% if request.url.path.startswith('/trucks') %}active{% endif %}">Траки</a>
+          <a href="/" class="{% if request.url.path == '/' %}active{% endif %}" title="Таблица">
+            <span class="nav-icon">Tb</span>
+            <span class="nav-label">Таблица</span>
+          </a>
+          <a href="/trucks" class="{% if request.url.path.startswith('/trucks') %}active{% endif %}" title="Траки">
+            <span class="nav-icon">Tr</span>
+            <span class="nav-label">Траки</span>
+          </a>
           {% if user.role.value == 'superadmin' %}
-          <a href="/companies" class="{% if request.url.path == '/companies' %}active{% endif %}">Компании</a>
+          <a href="/companies" class="{% if request.url.path == '/companies' %}active{% endif %}" title="Компании">
+            <span class="nav-icon">Co</span>
+            <span class="nav-label">Компании</span>
+          </a>
           {% endif %}
-          <a href="/telegram/groups" class="{% if request.url.path == '/telegram/groups' %}active{% endif %}">Telegram</a>
-          <a href="/telegram/request-docs" class="{% if request.url.path == '/telegram/request-docs' %}active{% endif %}">Запрос доков</a>
-          <a href="/telegram/incoming" class="{% if request.url.path == '/telegram/incoming' %}active{% endif %}">Входящие доки</a>
-          <a href="/terminated" class="{% if request.url.path == '/terminated' %}active{% endif %}">Terminated</a>
+          <a href="/telegram/groups" class="{% if request.url.path == '/telegram/groups' %}active{% endif %}" title="Telegram">
+            <span class="nav-icon">Tg</span>
+            <span class="nav-label">Telegram</span>
+          </a>
+          <a href="/telegram/request-docs" class="{% if request.url.path == '/telegram/request-docs' %}active{% endif %}" title="Запрос доков">
+            <span class="nav-icon">Rq</span>
+            <span class="nav-label">Запрос доков</span>
+          </a>
+          <a href="/telegram/incoming" class="{% if request.url.path == '/telegram/incoming' %}active{% endif %}" title="Входящие доки">
+            <span class="nav-icon">In</span>
+            <span class="nav-label">Входящие доки</span>
+          </a>
+          <a href="/terminated" class="{% if request.url.path == '/terminated' %}active{% endif %}" title="Terminated">
+            <span class="nav-icon">Tm</span>
+            <span class="nav-label">Terminated</span>
+          </a>
           {% if user.role.value == 'superadmin' %}
-          <a href="/admin" class="{% if request.url.path == '/admin' %}active{% endif %}">Администрирование</a>
+          <a href="/admin" class="{% if request.url.path == '/admin' %}active{% endif %}" title="Администрирование">
+            <span class="nav-icon">Ad</span>
+            <span class="nav-label">Администрирование</span>
+          </a>
           {% endif %}
         </nav>
         <form action="/logout" method="post" class="logout-form">
-          <button type="submit" class="ghost-button">Выйти</button>
+          <button type="submit" class="ghost-button nav-logout" title="Выйти">
+            <span class="nav-icon">Ex</span>
+            <span class="nav-label">Выйти</span>
+          </button>
         </form>
       </aside>
       {% endif %}

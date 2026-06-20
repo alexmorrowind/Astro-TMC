@@ -242,6 +242,38 @@ def document_state(document: Document | TruckDocument | None) -> dict:
     }
 
 
+def expiration_summary(documents: list[dict]) -> dict:
+    present_documents = [item for item in documents if item["document"] is not None]
+    if not present_documents:
+        return {"label": "No docs", "detail": "No uploaded files", "css": "missing"}
+
+    def summary_detail(item: dict) -> str:
+        expiration = item["state"]["expiration"]
+        if not expiration:
+            return item["name"]
+        days_left = (expiration - date.today()).days
+        if days_left < 0:
+            return f"{item['name']} {item['state']['detail']} ({abs(days_left)}d late)"
+        return f"{item['name']} {item['state']['detail']} ({days_left}d)"
+
+    expired = [item for item in present_documents if item["state"]["css"] == "expired"]
+    if expired:
+        first = min(expired, key=lambda item: item["state"]["expiration"])
+        return {"label": "Expired", "detail": summary_detail(first), "css": "expired"}
+
+    expiring = [item for item in present_documents if item["state"]["css"] == "expiring"]
+    if expiring:
+        first = min(expiring, key=lambda item: item["state"]["expiration"])
+        return {"label": "Expiring soon", "detail": summary_detail(first), "css": "expiring"}
+
+    no_exp = [item for item in present_documents if item["state"]["css"] == "no-exp"]
+    if no_exp:
+        return {"label": "Set exp date", "detail": f"{len(no_exp)} uploaded doc(s)", "css": "no-exp"}
+
+    first_valid = min(present_documents, key=lambda item: item["state"]["expiration"])
+    return {"label": "OK", "detail": f"Next {summary_detail(first_valid)}", "css": "valid"}
+
+
 def driver_row_payload(driver: Driver, required_documents: list[str]) -> dict:
     document_map = {document.display_name: document for document in driver.documents}
     documents = [
@@ -253,7 +285,12 @@ def driver_row_payload(driver: Driver, required_documents: list[str]) -> dict:
         for document_name in required_documents
     ]
     missing_documents = [item["name"] for item in documents if item["document"] is None]
-    return {"item": driver, "documents": documents, "missing_documents": missing_documents}
+    return {
+        "item": driver,
+        "documents": documents,
+        "missing_documents": missing_documents,
+        "expiration_summary": expiration_summary(documents),
+    }
 
 
 def truck_row_payload(truck: Truck, required_documents: list[str]) -> dict:
@@ -267,7 +304,12 @@ def truck_row_payload(truck: Truck, required_documents: list[str]) -> dict:
         for document_name in required_documents
     ]
     missing_documents = [item["name"] for item in documents if item["document"] is None]
-    return {"item": truck, "documents": documents, "missing_documents": missing_documents}
+    return {
+        "item": truck,
+        "documents": documents,
+        "missing_documents": missing_documents,
+        "expiration_summary": expiration_summary(documents),
+    }
 
 
 @app.get("/", response_class=HTMLResponse)

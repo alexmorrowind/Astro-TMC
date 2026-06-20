@@ -9,56 +9,42 @@
   </div>
 </header>
 
-<section class="info-panel telegram-help">
-  <h2>Как это работает</h2>
-  <div class="command-grid">
-    <div>
-      <strong>1. Добавьте служебный аккаунт</strong>
-      <p>Аккаунт collector видит личные чаты и те группы/каналы, где он состоит.</p>
-    </div>
-    <div>
-      <strong>2. Запустите collector</strong>
-      <code>.venv/bin/python -m app.collector.main</code>
-      <p>При старте он сам добавит сюда личные чаты, группы и каналы аккаунта.</p>
-    </div>
-    <div>
-      <strong>3. Управляйте статусом</strong>
-      <p>Включайте нужные чаты, отключайте лишние и привязывайте компанию, когда потребуется.</p>
-    </div>
-  </div>
-</section>
-
-{% if user.role.value == 'superadmin' %}
-<form class="toolbar" method="post" action="/telegram/groups">
-  <label>
-    Chat ID
-    <input name="chat_id" required placeholder="-1001234567890">
-  </label>
-  <label>
-    Название
-    <input name="title" required placeholder="Driver John / Demo Dispatch">
+<form class="toolbar telegram-sort-toolbar" method="get" action="/telegram/groups">
+  <label class="search-field">
+    Поиск
+    <input name="q" value="{{ q }}" placeholder="Название, chat ID, компания, водитель">
   </label>
   <label>
     Тип
     <select name="chat_type">
-      <option value="group">group</option>
-      <option value="supergroup">supergroup</option>
-      <option value="channel">channel</option>
-      <option value="private">private</option>
+      <option value="">Все типы</option>
+      <option value="private" {% if chat_type == 'private' %}selected{% endif %}>private</option>
+      <option value="group" {% if chat_type == 'group' %}selected{% endif %}>group</option>
+      <option value="supergroup" {% if chat_type == 'supergroup' %}selected{% endif %}>supergroup</option>
+      <option value="channel" {% if chat_type == 'channel' %}selected{% endif %}>channel</option>
     </select>
   </label>
   <label>
-    Компания
-    <select name="company_id">
-      <option value="">Без компании</option>
-      {% for company in companies %}
-      <option value="{{ company.id }}">{{ company.name }}</option>
-      {% endfor %}
+    Статус
+    <select name="status_filter">
+      <option value="">Все статусы</option>
+      <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+      <option value="disabled" {% if status_filter == 'disabled' %}selected{% endif %}>Disabled</option>
     </select>
   </label>
-  <button class="primary-button compact" type="submit">Добавить</button>
+  <label>
+    Сортировка
+    <select name="sort_by">
+      <option value="activity" {% if sort_by == 'activity' %}selected{% endif %}>Последняя активность</option>
+      <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Название A-Z</option>
+      <option value="type" {% if sort_by == 'type' %}selected{% endif %}>Тип</option>
+      <option value="company" {% if sort_by == 'company' %}selected{% endif %}>Компания</option>
+      <option value="messages" {% if sort_by == 'messages' %}selected{% endif %}>Сообщений</option>
+    </select>
+  </label>
+  <button class="primary-button compact" type="submit">Применить</button>
+  <a href="/telegram/groups" class="ghost-button compact">Сброс</a>
 </form>
-{% endif %}
 
 <section class="table-shell">
   <table class="data-table">

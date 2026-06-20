@@ -787,10 +787,46 @@ def terminated_page(request: Request, db: Session = Depends(get_db)):
 
 
 @app.get("/telegram/groups", response_class=HTMLResponse)
-def telegram_groups_page(request: Request, db: Session = Depends(get_db)):
+def telegram_groups_page(
+    request: Request,
+    q: str | None = None,
+    chat_type: str | None = None,
+    status_filter: str | None = None,
+    sort_by: str = "activity",
+    db: Session = Depends(get_db),
+):
     user = require_user(request, db)
     effective_company_id = user.company_id if user.role == UserRole.MANAGER else None
     groups = list_groups_for_company(db, company_id=effective_company_id)
+    if q:
+        needle = q.strip().lower()
+        groups = [
+            group
+            for group in groups
+            if needle in group.title.lower()
+            or needle in str(group.chat_id)
+            or needle in group.chat_type.lower()
+            or needle in (group.company.name.lower() if group.company else "")
+            or needle in (group.driver.full_name.lower() if group.driver else "")
+        ]
+    if chat_type:
+        groups = [group for group in groups if group.chat_type == chat_type]
+    if status_filter == "active":
+        groups = [group for group in groups if group.is_active]
+    elif status_filter == "disabled":
+        groups = [group for group in groups if not group.is_active]
+
+    if sort_by == "title":
+        groups.sort(key=lambda group: group.title.lower())
+    elif sort_by == "type":
+        groups.sort(key=lambda group: (group.chat_type, group.title.lower()))
+    elif sort_by == "company":
+        groups.sort(key=lambda group: ((group.company.name.lower() if group.company else ""), group.title.lower()))
+    elif sort_by == "messages":
+        groups.sort(key=lambda group: (group.message_count or 0), reverse=True)
+    else:
+        groups.sort(key=lambda group: group.last_seen_at or group.updated_at, reverse=True)
+
     companies = list(db.scalars(select(Company).order_by(Company.name)))
     drivers = list_drivers_with_documents(db, company_id=effective_company_id)
     return render(
@@ -801,6 +837,10 @@ def telegram_groups_page(request: Request, db: Session = Depends(get_db)):
             "groups": groups,
             "companies": companies,
             "drivers": drivers,
+            "q": q or "",
+            "chat_type": chat_type or "",
+            "status_filter": status_filter or "",
+            "sort_by": sort_by,
         },
     )
 

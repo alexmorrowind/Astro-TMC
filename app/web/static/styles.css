@@ -1232,22 +1232,6 @@ textarea {
   }
 }
 
-.telegram-help {
-  margin-bottom: 16px;
-}
-
-.command-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-
-.command-grid p {
-  color: var(--muted);
-  line-height: 1.5;
-  margin: 8px 0 0;
-}
-
 code {
   display: inline-flex;
   max-width: 100%;
@@ -1258,6 +1242,10 @@ code {
   color: #1e2b3a;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   white-space: normal;
+}
+
+.telegram-sort-toolbar {
+  grid-template-columns: minmax(260px, 1fr) 180px 180px 220px auto auto;
 }
 
 .missing-file .file-glyph {
